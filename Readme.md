@@ -57,7 +57,7 @@ pip install -r requirements.txt
 ## 3. Cấu trúc gói code
 
 ```
-25D2-KL-KHMT23/
+HQMoSS-Net/
 ├── src/
 │   ├── config.py            Cấu hình đường dẫn + siêu tham số
 │   ├── data.py              Nạp & tiền xử lý ảnh/mask cho GlaS và PH2
