@@ -59,24 +59,25 @@ pip install -r requirements.txt
 ```
 HQMoSS-Net/
 ├── src/
-│   ├── config.py            Cấu hình đường dẫn + siêu tham số
-│   ├── data.py              Nạp & tiền xử lý ảnh/mask cho GlaS và PH2
-│   ├── metrics.py           IoU (khi train) và bộ chỉ số đầy đủ (khi báo cáo)
-│   ├── train.py             Huấn luyện + kiểm định chéo K-fold (dòng lệnh)
-│   ├── evaluate.py          Tính bảng chỉ số báo cáo + vẽ biểu đồ so sánh
-│   ├── explain.py           Seg-Grad-CAM + độ đo interpretability (4 chế độ)
-│   ├── xai_metrics.py       Độ đo định lượng chất lượng CAM + lọc nhiễu component
-│   ├── router_analysis.py   Cân bằng định tuyến QuantumMoE + kiểm định Mann-Whitney U
-│   ├── requirements.txt     Danh sách thư viện
+│   ├── config.py             Cấu hình đường dẫn + siêu tham số
+│   ├── data.py               Nạp & tiền xử lý ảnh/mask cho GlaS và PH2
+│   ├── metrics.py            IoU (khi train) và bộ chỉ số đầy đủ (khi báo cáo)
+│   ├── train.py              Huấn luyện + kiểm định chéo K-fold (dòng lệnh)
+│   ├── evaluate.py           Tính bảng chỉ số báo cáo + vẽ biểu đồ so sánh
+│   ├── explain.py            Seg-Grad-CAM + độ đo interpretability (4 chế độ)
+│   ├── xai_metrics.py        Độ đo định lượng chất lượng CAM + lọc nhiễu component
+│   ├── router_analysis.py    Cân bằng định tuyến QuantumMoE + kiểm định Mann-Whitney U
+│   ├── requirements.txt      Danh sách thư viện
 │   ├── models/
-│   │   ├── blocks.py        RDMS, khối conv encoder/decoder, SelectiveScan, LSS
-│   │   ├── quantum.py       Quantum MoE (PQC, expert, router) + QuFeX (QCNN)
-│   │   ├── classical_moe.py Classical MoE (CMoE) -- đối chứng cổ điển của QuMoE
-│   │   ├── segmentation.py  Bộ dựng mô hình hợp nhất + các biến thể ablation
-│   │   └── baselines.py     Các baseline U-Net (UNet++, Attention, R2U-Net, VNet)
-│   ├── Data/                Dữ liệu: GlaS_Fold_Dataset/, PH2_Dataset/
-│   ├── Reuslt/              Kết quả numpy: GlaS/, PH2/ (theo từng mô hình)
-│   └── XAI-result/          XAI_Ph2_HQMoSS/ (HPweights_fold1.weights.h5 + gradcam/)
+│   │   ├── blocks.py         RDMS, khối conv encoder/decoder, SelectiveScan, LSS
+│   │   ├── quantum.py        Quantum MoE (PQC, expert, router) + QuFeX (QCNN)
+│   │   ├── classical_moe.py  Classical MoE (CMoE) -- đối chứng cổ điển của QuMoE
+│   │   ├── segmentation.py   Bộ dựng mô hình hợp nhất + các biến thể ablation
+│   │   └── baselines.py      Các baseline U-Net (UNet++, Attention, R2U-Net, VNet)
+│   ├── Data/                 Dữ liệu: GlaS_Fold_Dataset/, PH2_Dataset/
+│   ├── Reuslt/               Kết quả numpy: GlaS/, PH2/ (theo từng mô hình)
+│   └── XAI-result/           XAI_Ph2_HQMoSS/ (HPweights_fold1.weights.h5 + gradcam/)
+├── HQMoSS-Net_AJCAI2026.pdf  Paper mô tả kiến trúc HQMoSS-Net và kết quả thực nghiệm
 ├── HuongDanCaiDat.txt
 └── HuongDanSuDung.txt
 ```
