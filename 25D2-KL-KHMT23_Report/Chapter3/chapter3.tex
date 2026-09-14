@@ -1,0 +1,565 @@
+\chapter{Cơ sở lý thuyết}
+\label{Chapter3}
+
+\textit{Chương này trình bày nền tảng lý thuyết cho toàn bộ các thành phần được sử dụng trong khóa luận, làm cơ sở cho việc thiết kế kiến trúc ở Chương~\ref{Chapter4}. Nội dung được sắp xếp theo trình tự từ bài toán phân đoạn ảnh y sinh và các công cụ đánh giá, tới kiến trúc U-Net cổ điển, các khái niệm cốt lõi của tính toán và học máy lượng tử (kèm một khảo lược các hướng tiếp cận QML tiêu biểu để định vị lựa chọn kiến trúc lai), cơ chế Mixture of Experts, và mô hình không gian trạng thái (State Space Model) cùng cơ chế quét chọn lọc của Mamba. Chương cũng bổ sung nền tảng về tích chập giãn nở (cho khối RDMS) và Trí tuệ nhân tạo khả giải thích (XAI) -- từ khái niệm, phân loại, so sánh lý thuyết một số kỹ thuật CAM, tới kỹ thuật Seg-Grad-CAM cụ thể và thách thức diễn giải riêng của mô hình lai. Đây chính là các nhóm nền tảng được kết hợp lại để hình thành mô hình đề xuất HQMoSS-Net.}
+
+\section{Bài toán phân đoạn ảnh y tế}
+\subsection{Mô tả toán học}
+Bài toán phân đoạn ảnh y sinh, đặc biệt là phân đoạn nhị phân (binary segmentation), có thể được định nghĩa như một bài toán phân loại cho từng điểm ảnh (pixel-wise classification). Cho một ảnh đầu vào $X \in \mathbb{R}^{H \times W \times C}$ với chiều cao $H$, chiều rộng $W$ và $C$ kênh màu. Mục tiêu của mô hình là học một ánh xạ tham số hóa $f_\theta$ biến $X$ thành một mặt nạ dự đoán $\hat{Y} = f_\theta(X) \in [0, 1]^{H \times W}$, trong đó mỗi giá trị $\hat{Y}_{i,j}$ biểu diễn xác suất điểm ảnh tại tọa độ $(i,j)$ thuộc về vùng đối tượng (foreground -- lớp 1). Mặt nạ thực tế (ground truth) tương ứng là $Y \in \{0, 1\}^{H \times W}$. Trong khóa luận, giá trị đầu ra $\hat{Y}$ được tạo ra bởi một lớp tích chập $1 \times 1$ với hàm kích hoạt sigmoid $\sigma(z)=1/(1+e^{-z})$, đảm bảo mỗi phần tử nằm trong khoảng $[0,1]$ và có thể diễn giải như một xác suất. Điểm mấu chốt phân biệt phân đoạn với phân loại là \emph{tính có cấu trúc của đầu ra}: thay vì một nhãn duy nhất, mô hình phải sinh ra $H\times W$ dự đoán \emph{tương quan không gian với nhau}, đòi hỏi kiến trúc vừa nén được ngữ nghĩa toàn cục vừa bảo toàn định vị chính xác tới từng điểm ảnh (Hình~\ref{fig:segtask}).
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.72\textwidth]{fig_segmentation_task.pdf}
+    \caption{Minh họa bài toán phân đoạn ảnh y sinh: mô hình $f_\theta$ biến ảnh gốc thành một mặt nạ nhị phân ở mức điểm ảnh, minh họa trên hai tập dữ liệu PH2 (tổn thương da) và GlaS 2015 (tuyến trong mô học).}
+    \label{fig:segtask}
+\end{figure}
+
+\subsection{Những thách thức đặc thù của phân đoạn ảnh y sinh}
+\label{subsec:challenges}
+Việc hiểu rõ các thách thức của bài toán là cơ sở để lý giải vì sao khóa luận lựa chọn từng thành phần kiến trúc. Bốn khó khăn nổi bật gồm:
+\begin{itemize}
+    \item \textbf{Mất cân bằng lớp (class imbalance):} vùng đối tượng (foreground) thường chiếm tỷ lệ nhỏ so với nền, khiến các độ đo như Accuracy dễ bị lệch và mô hình dễ ``lười'' dự đoán toàn nền. Đây là lý do khóa luận lấy IoU/Dice làm thước đo chính (mục~\ref{subsec:metrics}), vì chúng chỉ thưởng cho phần giao đúng với đối tượng.
+    \item \textbf{Ranh giới mờ và phức tạp:} biên tổn thương da hay biên tuyến trong mô học thường không sắc nét, chuyển tiếp dần giữa foreground và nền. Việc nắm bắt biên chính xác đòi hỏi mô hình tổng hợp ngữ cảnh ở \emph{nhiều tỷ lệ} -- động lực trực tiếp cho cơ chế đa tỷ lệ (khối RDMS cổ điển và các nhánh xử lý lượng tử đa tỷ lệ) trong Chương~\ref{Chapter4}.
+    \item \textbf{Dữ liệu huấn luyện hạn chế:} chú thích y khoa ở mức điểm ảnh rất đắt đỏ, dẫn tới các tập dữ liệu nhỏ (PH2 có 200 ảnh, GlaS có 165 ảnh). Kích thước nhỏ làm tăng nguy cơ quá khớp và đề cao các mô hình có \emph{quy nạp cấu trúc} (inductive bias) mạnh cùng số tham số vừa phải -- một bối cảnh mà biểu diễn lượng tử giàu năng lực nhưng ít tham số được kỳ vọng có lợi thế.
+    \item \textbf{Biến thiên ngoại hình và nhiễu:} chênh lệch về nhuộm màu, ánh sáng, thiết bị chụp và sự hiện diện của cấu trúc gây nhiễu (lông, bọt khí, mô đệm) làm phân bố ảnh biến thiên mạnh giữa các mẫu, đòi hỏi mô hình \emph{ổn định} và tổng quát hóa tốt.
+\end{itemize}
+Những thách thức này giải thích vì sao một kiến trúc kết hợp: (i) bộ khung U-Net bảo toàn không gian, (ii) khối đa tỷ lệ cho ranh giới, (iii) biểu diễn lượng tử hiệu quả tham số cho dữ liệu nhỏ, và (iv) khối chuỗi tổng hợp ngữ cảnh toàn cục -- là một lựa chọn hợp lý, như sẽ được lập luận và kiểm chứng ở các chương sau.
+
+\subsection{Các độ đo đánh giá (Metrics)}
+\label{subsec:metrics}
+Để đánh giá toàn diện chất lượng phân đoạn, khóa luận báo cáo tám chỉ số, chia thành hai nhóm ứng với hai cách xử lý đầu ra dự đoán. Gọi $\hat{Y} \in [0,1]^{H\times W}$ là bản đồ xác suất do mô hình sinh ra và $Y \in \{0,1\}^{H\times W}$ là nhãn thực.
+\begin{itemize}
+    \item \textbf{Nhóm ``mềm'' (soft):} tính trực tiếp trên xác suất liên tục $\hat{Y}$, phản ánh chất lượng dự đoán trước khi nhị phân hóa. Đây cũng là dạng được hiện thực trong mã nguồn qua hàm \texttt{compute\_iou} (soft IoU).
+    \item \textbf{Nhóm ``cứng'' (hard):} nhị phân hóa dự đoán bằng ngưỡng $0.5$, tức $\hat{Y}^{b}_{i,j} = \mathbb{1}[\hat{Y}_{i,j} \ge 0.5]$, rồi tính trên mặt nạ nhị phân thu được. Từ đó xác định bốn đại lượng đếm điểm ảnh: True Positive ($TP$), False Positive ($FP$), False Negative ($FN$) và True Negative ($TN$).
+\end{itemize}
+
+\emph{Ý nghĩa của IoU và Dice.} Cả hai đều đo mức chồng lấp giữa vùng dự đoán và vùng nhãn thực. IoU (Intersection over Union -- tỷ lệ giao trên hợp) lấy diện tích phần giao chia cho diện tích phần hợp, nên phạt nặng cả phần bỏ sót lẫn phần báo dư; Dice (Dice Similarity Coefficient -- hệ số tương đồng Dice) lấy hai lần phần giao chia cho tổng diện tích hai vùng, thường ``rộng lượng'' hơn IoU ở cùng một mức chồng lấp. Đây là hai thước đo phù hợp cho phân đoạn vì chỉ thưởng cho phần giao đúng với đối tượng, không bị vùng nền chi phối.
+
+\noindent\textbf{(1) Soft IoU và (2) Soft Dice.} Được tính \emph{trực tiếp trên trường xác suất liên tục} $\hat{Y}$ (chưa lấy ngưỡng), với hệ số làm trơn $\epsilon$ để tránh chia cho không:
+\begin{equation}
+    \text{IoU}_{\text{soft}} = \frac{\sum Y\hat{Y} + \epsilon}{\sum Y + \sum \hat{Y} - \sum Y\hat{Y} + \epsilon},
+    \qquad
+    \text{Dice}_{\text{soft}} = \frac{2\sum Y\hat{Y} + \epsilon}{\sum Y + \sum \hat{Y} + \epsilon},
+\end{equation}
+trong đó các tổng lấy trên toàn bộ điểm ảnh.
+
+\noindent\textbf{(3) Hard IoU (chỉ số Jaccard) và (4) Hard Dice (DSC).} Tính \emph{sau khi nhị phân hóa} ở ngưỡng $0.5$, trên mặt nạ nhị phân $\hat{Y}^b$ so với nhãn thực $Y$:
+\begin{equation}
+    \text{IoU} = \frac{TP}{TP + FP + FN},
+    \qquad
+    \text{Dice} = \frac{2TP}{2TP + FP + FN},
+\end{equation}
+trong đó, xét theo từng điểm ảnh: $TP$ (True Positive) là số điểm ảnh thuộc đối tượng và được dự đoán đúng là đối tượng; $FP$ (False Positive) là số điểm ảnh thuộc nền nhưng bị dự đoán nhầm là đối tượng (báo dương giả); $FN$ (False Negative) là số điểm ảnh thuộc đối tượng nhưng bị dự đoán nhầm là nền (bỏ sót đối tượng); còn $TN$ (True Negative, dùng ở các công thức bên dưới) là số điểm ảnh thuộc nền và được dự đoán đúng là nền.
+
+\emph{Vì sao dùng đồng thời cả dạng mềm lẫn dạng cứng?} Dạng mềm khả vi và phản ánh đúng đại lượng mà quá trình huấn luyện tối ưu (đúng như hàm \texttt{compute\_iou} trong mã nguồn); dạng cứng phản ánh chất lượng mặt nạ nhị phân thực tế bàn giao lâm sàng và là dạng chuẩn để đối chiếu với y văn. Báo cáo song song hai dạng giúp phân biệt lợi thế mô hình đến từ hiệu chỉnh xác suất tốt hơn (mềm) hay ranh giới sắc nét hơn (cứng), đồng thời phát hiện trường hợp ``đẹp mềm nhưng sụp cứng'' khi xác suất mờ quanh ngưỡng $0.5$.
+
+\noindent\textbf{(5)--(8) Các chỉ số dựa trên confusion matrix (ma trận nhầm lẫn):}
+\begin{equation}
+    \text{Accuracy} = \frac{TP + TN}{TP + TN + FP + FN},
+    \qquad
+    \text{Precision} = \frac{TP}{TP + FP},
+\end{equation}
+\begin{equation}
+    \text{Sensitivity (Recall)} = \frac{TP}{TP + FN},
+    \qquad
+    \text{Specificity} = \frac{TN}{TN + FP}.
+\end{equation}
+Trong đó, \emph{Precision} phản ánh tỷ lệ dự đoán đối tượng là chính xác, \emph{Sensitivity} (độ nhạy) đo khả năng phát hiện đầy đủ vùng đối tượng, còn \emph{Specificity} (độ đặc hiệu) đo khả năng loại đúng vùng nền. Trong phân đoạn y sinh với vùng nền thường chiếm đa số, Accuracy có thể bị lệch (cao giả tạo), nên IoU và Dice vẫn được xem là các thước đo chính; các chỉ số còn lại bổ sung góc nhìn về cân bằng giữa bỏ sót và báo nhầm. Tất cả tám chỉ số đều nằm trong đoạn $[0,1]$ và càng gần $1$ càng tốt.
+
+\subsection{Hàm mất mát (Loss Function)}
+\label{subsec:loss}
+Quá trình huấn luyện của khóa luận sử dụng hàm mất mát \textbf{Binary Cross-Entropy (BCE)} -- đúng như cấu hình \texttt{loss="binary\_crossentropy"} trong mã nguồn. BCE đo lường độ sai khác giữa phân bố xác suất dự đoán và nhãn thực trên từng điểm ảnh một cách độc lập:
+\begin{equation}
+    \mathcal{L}_{BCE} = - \frac{1}{N} \sum_{i,j} \Big[ Y_{i,j} \log \hat{Y}_{i,j} + (1-Y_{i,j}) \log (1-\hat{Y}_{i,j}) \Big],
+\end{equation}
+trong đó $N = H \times W$ là tổng số điểm ảnh. Về mặt trực giác, với mỗi điểm ảnh thuộc đối tượng ($Y_{i,j}=1$), hàm mất mát phạt theo $-\log \hat{Y}_{i,j}$, tức càng phạt nặng khi mô hình dự đoán xác suất thấp cho vùng đúng; và ngược lại đối với điểm ảnh nền. BCE có đạo hàm trơn, ổn định về mặt số học và tương thích tốt với đầu ra sigmoid, giúp quá trình lan truyền ngược hội tụ ổn định. Trong lĩnh vực phân đoạn, nhiều hàm mất mát chuyên biệt khác cũng đã được đề xuất nhằm xử lý mất cân bằng lớp, tiêu biểu là Dice loss, Generalized Dice \cite{sudre2017generalizeddice} và Tversky loss \cite{salehi2017tversky} (một tổng quan có thể tham khảo tại \cite{jadon2020losssurvey}). Tuy nhiên, để bám sát cấu hình mã nguồn và bảo đảm điều kiện so sánh công bằng giữa mô hình cổ điển và các mô hình lai lượng tử, khóa luận sử dụng thuần nhất BCE làm hàm mất mát duy nhất để tối ưu tất cả các mô hình.
+
+\subsection{Kiểm định ý nghĩa thống kê}
+\label{subsec:stat_test}
+Vì mỗi mô hình được đánh giá bằng kiểm định chéo $5$-fold, chênh lệch trung bình giữa hai mô hình có thể chỉ là dao động ngẫu nhiên giữa các fold. Mục này trình bày các chỉ số kiểm định dùng để xác nhận một chênh lệch là \emph{thực chất} hay không (áp dụng ở Chương~\ref{Chapter5}). Đơn vị so sánh là Soft IoU \emph{pooled} mức fold (mục~\ref{subsec:metrics}): với mô hình đề xuất và một baseline, gọi $a_k, b_k$ là Soft IoU của fold $k$, đặt hiệu số ghép cặp $d_k = a_k - b_k$ ($k=1,\dots,K$, $K=5$), trung bình $\bar d$ và độ lệch chuẩn mẫu $s_d$.
+
+\noindent\textbf{(1) Mức chênh trung bình $\Delta = \bar d$.} Đây là đại lượng hiệu ứng cần kiểm định (báo cáo theo điểm phần trăm).
+
+\noindent\textbf{(2) Khoảng tin cậy bootstrap $95\%$ (percentile)~\cite{efron1993bootstrap}} -- \emph{bằng chứng chính}. Lấy mẫu lại có hoàn lại tập $\{d_k\}$ $B$ lần, mỗi lần tính trung bình $\bar d^{*(b)}$, rồi lấy phân vị $2.5\%$ và $97.5\%$ của $B$ giá trị đó:
+\begin{equation}
+    \text{CI}_{95\%} = \big[\, \mathrm{P}_{2.5}\{\bar d^{*(b)}\},\ \ \mathrm{P}_{97.5}\{\bar d^{*(b)}\} \,\big].
+\end{equation}
+Nếu khoảng này \emph{không chứa} $0$ thì cải thiện được xem là có ý nghĩa. Dùng làm bằng chứng chính vì không giả định phân phối chuẩn (bền vững với cỡ mẫu nhỏ $K=5$) và cho biết cả hướng lẫn độ lớn hiệu ứng.
+
+\noindent\textbf{(3) Cỡ hiệu ứng Cohen's d~\cite{cohen1988power}:}
+\begin{equation}
+    d = \frac{\bar d}{s_d}.
+\end{equation}
+Dùng vì giá trị $p$ phụ thuộc cỡ mẫu và không phản ánh \emph{độ lớn} khác biệt; Cohen's d chuẩn hóa mức chênh theo độ biến thiên (quy ước $|d|>0.8$ là hiệu ứng lớn), bổ sung cho khoảng tin cậy.
+
+\noindent\textbf{(4) Kiểm định $t$ ghép cặp một phía.} Với thống kê $t = \bar d / (s_d/\sqrt{K})$ ($K-1$ bậc tự do), giá trị $p$ một phía kiểm định giả thuyết đối $H_1: \bar d > 0$:
+\begin{equation}
+    t = \frac{\bar d}{s_d/\sqrt{K}}.
+\end{equation}
+Dùng kiểm định \emph{một phía} vì giả thuyết có hướng \emph{a priori} (mô hình đề xuất được thiết kế để vượt baseline), đóng vai trò xác nhận tham số bên cạnh khoảng tin cậy bootstrap.
+
+\noindent\textbf{(5) Gộp bằng chứng đa bộ dữ liệu -- Stouffer's Z~\cite{whitlock2005stouffer}.} Từ các giá trị $p$ một phía \emph{độc lập, cùng hướng} của hai bộ dữ liệu ($p_i$), quy về điểm $z$ rồi gộp có trọng số $w_i$:
+\begin{equation}
+    z_i = \Phi^{-1}(1 - p_i), \qquad
+    Z = \frac{\sum_i w_i\, z_i}{\sqrt{\sum_i w_i^2}}, \qquad
+    p_{\text{gộp}} = 1 - \Phi(Z),
+\end{equation}
+với $\Phi$ là hàm phân phối tích lũy chuẩn và trọng số $w_i = \sqrt{K}$ theo cỡ mẫu mỗi bộ. Dùng để hợp nhất bằng chứng từ PH2 và GlaS thành một kết luận tổng, tăng lực kiểm định so với xét riêng từng bộ.
+
+\FloatBarrier
+
+\section{Kiến trúc U-Net}
+Kiến trúc U-Net \cite{ronneberger2015unet} là một mạng nơ-ron tích chập (CNN) đối xứng dạng chữ U, gồm ba thành phần cốt lõi (Hình~\ref{fig:unet}).
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.95\textwidth]{fig_unet.pdf}
+    \caption{Kiến trúc U-Net kinh điển: nhánh mã hóa (trái) giảm dần độ phân giải và tăng số kênh, nhánh giải mã (phải) khôi phục độ phân giải, cùng các kết nối tắt ngang (skip connections) bảo toàn chi tiết không gian.}
+    \label{fig:unet}
+\end{figure}
+\subsection{Phép tích chập và tổng hợp cực đại}
+Nền tảng của U-Net là phép tích chập hai chiều. Với đầu vào $X$ và bộ lọc (kernel) $K$ kích thước $k \times k$, đầu ra tại vị trí $(i,j)$ của kênh đặc trưng được tính bởi:
+\begin{equation}
+    (X * K)_{i,j} = \sum_{m}\sum_{n} X_{i+m,\,j+n}\, K_{m,n} + b,
+\end{equation}
+với $b$ là hệ số dịch (bias). Sau mỗi phép tích chập, một hàm kích hoạt phi tuyến ReLU (Rectified Linear Unit) $\sigma(z)=\max(0,z)$ \cite{nair2010relu} được áp dụng để tăng khả năng biểu diễn phi tuyến. Lớp tổng hợp cực đại (MaxPooling) với cửa sổ $2\times 2$ lấy giá trị lớn nhất trong mỗi vùng cục bộ, qua đó giảm một nửa độ phân giải không gian và tạo tính bất biến cục bộ đối với dịch chuyển nhỏ.
+\subsection{Nhánh mã hóa và nhánh giải mã}
+Nhánh mã hóa (encoder) gồm các khối tích chập liên tiếp xen kẽ MaxPooling; qua mỗi tầng, độ phân giải không gian giảm một nửa còn số kênh đặc trưng thường tăng lên, tạo biểu diễn trừu tượng và giàu ngữ nghĩa. Sự tăng số kênh khi giảm độ phân giải là một đánh đổi có chủ đích: mạng ``đổi'' thông tin vị trí lấy thông tin ngữ nghĩa, dồn dần về một biểu diễn cô đọng tại bottleneck.
+
+Nhánh giải mã (decoder) thực hiện quá trình khôi phục độ phân giải bằng các lớp tích chập chuyển vị (Conv2DTranspose). Về mặt toán học, tích chập chuyển vị là phép \emph{liên hợp} (adjoint) của tích chập thường: nếu tích chập có stride $s$ thu nhỏ không gian $s$ lần thì tích chập chuyển vị với cùng stride sẽ nới rộng không gian $s$ lần bằng cách chèn $s-1$ hàng/cột giá trị $0$ giữa các điểm ảnh đầu vào rồi thực hiện một tích chập thường. Kích thước đầu ra theo mỗi chiều là
+\begin{equation}
+    o = s\,(i-1) + k - 2p,
+\end{equation}
+với $i$ là kích thước đầu vào, $k$ kích thước nhân, $p$ độ đệm; với $s=2, k=3, p=1$ ta được $o=2i$, đúng như thao tác nhân đôi độ phân giải dùng trong khóa luận. Sau khi upsample, đặc trưng được ghép nối với đặc trưng tương ứng từ encoder (skip connection) và tinh chỉnh bằng các khối tích chập.
+\subsection{Kết nối tắt (Skip connections)}
+Đây là đặc trưng cốt lõi của U-Net. Tại mỗi cấp độ, bản đồ đặc trưng từ nhánh mã hóa được ghép nối (concatenate) trực tiếp với bản đồ đặc trưng cùng độ phân giải ở nhánh giải mã. Cơ chế này bù đắp thông tin không gian, ranh giới và chi tiết nhỏ bị mất trong quá trình nén ở encoder, giúp mô hình tái tạo bản đồ phân đoạn với đường viền sắc nét. Chính cấu trúc nhiều cấp độ với các điểm nối này cung cấp nhiều vị trí lý tưởng để nhúng các khối tính toán lượng tử, như sẽ trình bày ở Chương~\ref{Chapter4}.
+
+\subsection{Tích chập giãn nở và trường nhìn}
+\label{subsec:dilated}
+Một hạn chế của tích chập thông thường là trường nhìn (receptive field) mở rộng chậm theo độ sâu mạng: mỗi lớp $k\times k$ chỉ nới rộng trường nhìn thêm $k-1$ điểm ảnh. Để nắm bắt ngữ cảnh rộng hơn mà không tăng số tham số hay hy sinh độ phân giải, \emph{tích chập giãn nở} (dilated/atrous convolution) \cite{yu2016dilated} chèn khoảng cách $r-1$ điểm ảnh (gọi là hệ số giãn nở $r$) giữa các phần tử của bộ lọc:
+\begin{equation}
+    (X *_{r} K)_{i,j} = \sum_{m}\sum_{n} X_{i+r\cdot m,\; j+r\cdot n}\, K_{m,n}.
+\end{equation}
+Với bộ lọc $k\times k$ và hệ số giãn nở $r$, kích thước bộ lọc hiệu dụng (effective kernel size) là
+\begin{equation}
+    k_{\text{eff}} = k + (k-1)(r-1),
+\end{equation}
+nghĩa là một nhân $3\times 3$ với $r=1,2,3$ lần lượt bao phủ vùng ngữ cảnh $3\times 3$, $5\times 5$ và $7\times 7$ trong khi vẫn chỉ dùng $9$ trọng số (Hình~\ref{fig:dilated}). Việc gộp song song nhiều nhánh với các hệ số giãn nở khác nhau tạo ra biểu diễn \emph{đa tỷ lệ}: cùng một vị trí không gian được nhìn ở nhiều bán kính ngữ cảnh, từ chi tiết cục bộ đến cấu trúc rộng. Đây chính là nguyên lý của khối RDMS trong Chương~\ref{Chapter4}.
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.9\textwidth]{fig_dilated_conv.pdf}
+    \caption{Tích chập giãn nở với hệ số $r=1,2,3$: cùng một bộ lọc $3\times 3$ ($9$ trọng số) nhưng trường nhìn hiệu dụng mở rộng thành $3\times 3$, $5\times 5$, $7\times 7$ mà không tăng số tham số.}
+    \label{fig:dilated}
+\end{figure}
+\FloatBarrier
+
+\subsection{Tích chập tách kênh và học phần dư}
+\label{subsec:dwsep}
+Khối RDMS còn kế thừa hai kỹ thuật nền tảng khác. Thứ nhất là \textbf{tích chập tách kênh theo chiều sâu} (depthwise separable convolution) \cite{chollet2017xception}: thay vì một tích chập đầy đủ trộn đồng thời không gian và kênh (chi phí $\mathcal{O}(k^2 C_{in} C_{out})$ tham số cho mỗi vị trí), phép này tách thành hai bước -- một tích chập \emph{depthwise} lọc từng kênh độc lập ($\mathcal{O}(k^2 C_{in})$) và một tích chập \emph{pointwise} $1\times 1$ trộn kênh ($\mathcal{O}(C_{in}C_{out})$). Tỷ lệ tiết kiệm tham số so với tích chập đầy đủ là
+\begin{equation}
+    \frac{k^2 C_{in} + C_{in}C_{out}}{k^2 C_{in} C_{out}} = \frac{1}{C_{out}} + \frac{1}{k^2},
+\end{equation}
+tức với $k=3$ và $C_{out}$ lớn, chi phí giảm gần $9$ lần. Nhờ vậy, khối RDMS có thể đặt \emph{ba} nhánh giãn nở song song mà tổng tham số vẫn rất nhỏ -- một yếu tố quan trọng để giữ mô hình gọn nhẹ, phù hợp với dữ liệu y sinh hạn chế.
+
+Thứ hai là \textbf{học phần dư} (residual learning) \cite{he2016resnet}: thay vì học trực tiếp ánh xạ mục tiêu $\mathcal{H}(x)$, khối học phần bổ sung $\mathcal{F}(x)=\mathcal{H}(x)-x$ rồi cộng lại $\mathcal{H}(x)=\mathcal{F}(x)+x$. Kết nối tắt cộng này giúp gradient truyền thẳng về các tầng trước (giảm hiện tượng tiêu biến gradient), cho phép khởi tạo gần ánh xạ đồng nhất và ổn định huấn luyện. Cả hai kỹ thuật -- đa tỷ lệ giãn nở, tách kênh và phần dư -- hội tụ trong thiết kế khối RDMS ở Chương~\ref{Chapter4}, đồng thời tinh thần kết nối phần dư còn được tái sử dụng ở khối QuantumMoE và khối LSS để bảo toàn tín hiệu gốc.
+
+\FloatBarrier
+
+\section{Lý thuyết tính toán lượng tử}
+
+\subsection{Số phức: nền tảng toán học cho biên độ lượng tử}
+\label{subsec:complex}
+Trước khi trình bày các khái niệm lượng tử, cần điểm qua số phức -- nền tảng toán học bắt buộc để biểu diễn trạng thái lượng tử, vì (như sẽ thấy ngay dưới đây) biên độ xác suất của một qubit luôn là số phức chứ không phải số thực. Một số phức $z\in\mathbb{C}$ có dạng
+\begin{equation}
+    z = a + bi, \qquad a, b\in\mathbb{R},\ i^2=-1,
+\end{equation}
+trong đó $a=\mathrm{Re}(z)$ là phần thực, $b=\mathrm{Im}(z)$ là phần ảo, và $i=\sqrt{-1}$ là đơn vị ảo. Số phức liên hợp (complex conjugate) $\bar{z}=a-bi$ đảo dấu phần ảo, còn mô-đun (modulus) $|z|=\sqrt{a^2+b^2}=\sqrt{z\bar{z}}$ đo ``độ lớn'' của $z$, tổng quát hóa giá trị tuyệt đối của số thực.
+
+Theo công thức Euler, mọi số phức khác không đều viết được dưới \emph{dạng cực} (polar form):
+\begin{equation}
+    z = |z|\,e^{i\varphi} = |z|\big(\cos\varphi + i\sin\varphi\big),
+\end{equation}
+trong đó $|z|$ là mô-đun và $\varphi=\arg(z)\in[0,2\pi)$ là góc pha (phase) -- góc hợp bởi $z$ với trục thực khi biểu diễn $z$ như một điểm trên mặt phẳng phức $(a,b)$.
+
+\emph{Vì sao lượng tử cần số phức chứ không dùng số thực.} Khác với xác suất cổ điển (luôn là số thực không âm), cơ học lượng tử mô tả trạng thái bằng \emph{biên độ xác suất} (probability amplitude) dạng số phức: một biên độ vừa mang \emph{độ lớn} $|z|$ (quyết định xác suất đo được qua $|z|^2$ theo quy tắc Born, mục~\ref{subsec:hilbert}) vừa mang \emph{góc pha} $\varphi$ -- đại lượng không đo trực tiếp được nhưng chi phối hiện tượng \emph{giao thoa lượng tử} (quantum interference) khi hai biên độ được cộng lại. Cụ thể, nếu hai biên độ có pha lệch nhau đúng $\pi$ thì $e^{i\pi}=-1$, khiến chúng \emph{triệt tiêu lẫn nhau} dù mô-đun của cả hai đều dương -- một hiện tượng không có đối ứng trong xác suất cổ điển (vốn chỉ có thể cộng dồn chứ không thể triệt tiêu). Đây chính là lý do không gian trạng thái lượng tử (mục~\ref{subsec:hilbert}) được xây dựng trên trường số phức $\mathbb{C}$ thay vì số thực $\mathbb{R}$, và cũng là gốc rễ toán học của các hiện tượng đặc trưng lượng tử như chồng chất và vướng víu được trình bày sau đây.
+
+\subsection{Không gian Hilbert và Qubit}
+\label{subsec:hilbert}
+Trong máy tính lượng tử, đơn vị thông tin cơ bản là qubit \cite{nielsen2010quantum, vu2025quantum}. Khác với bit cổ điển chỉ mang giá trị $0$ hoặc $1$, trạng thái của một qubit được biểu diễn bằng một vector đơn vị trong không gian Hilbert phức hai chiều $\mathbb{C}^2$:
+\begin{equation}
+    |\psi\rangle = \alpha|0\rangle + \beta|1\rangle, \qquad \alpha, \beta \in \mathbb{C}, \quad |\alpha|^2 + |\beta|^2 = 1.
+\end{equation}
+Hai hệ số $\alpha, \beta$ gọi là biên độ xác suất; theo tiên đề đo lường (quy tắc Born), xác suất thu được kết quả $0$ hay $1$ lần lượt là $|\alpha|^2$ và $|\beta|^2$.
+
+\noindent\textbf{Mặt cầu Bloch.} Vì điều kiện chuẩn hóa $|\alpha|^2+|\beta|^2=1$ và pha toàn cục không quan sát được, trạng thái một qubit thuần túy có thể tham số hóa bằng hai góc và biểu diễn như một điểm trên mặt cầu đơn vị (mặt cầu Bloch):
+\begin{equation}
+    |\psi\rangle = \cos\tfrac{\theta}{2}\,|0\rangle + e^{i\varphi}\sin\tfrac{\theta}{2}\,|1\rangle,
+    \qquad \theta\in[0,\pi],\ \varphi\in[0,2\pi).
+\end{equation}
+Mọi cổng lượng tử đơn qubit tương ứng với một phép quay của điểm này trên mặt cầu Bloch -- một trực giác hình học hữu ích để hiểu vai trò của các cổng quay tham số hóa (Hình~\ref{fig:bloch}).
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.42\textwidth]{fig_bloch_sphere.pdf}
+    \caption{Mặt cầu Bloch: trạng thái một qubit $|\psi\rangle=\cos\tfrac{\theta}{2}|0\rangle+e^{i\varphi}\sin\tfrac{\theta}{2}|1\rangle$ ứng với một điểm trên mặt cầu đơn vị, xác định bởi hai góc $\theta$ và $\varphi$.}
+    \label{fig:bloch}
+\end{figure}
+\FloatBarrier
+
+\noindent\textbf{Hệ nhiều qubit và tích tensor.} Đối với hệ gồm $n$ qubit, không gian trạng thái là tích tensor (tích Kronecker) của các không gian đơn qubit, $\mathcal{H}=(\mathbb{C}^2)^{\otimes n}$, có số chiều $2^n$. Để thấy rõ sự ``bùng nổ'' số chiều này, xét phép tích tensor của hai qubit cơ sở: mỗi phần tử của vector thứ nhất nhân với toàn bộ vector thứ hai, tạo ra một vector cột dài gấp đôi. Ví dụ với $|0\rangle=\big(\begin{smallmatrix}1\\0\end{smallmatrix}\big)$ và $|1\rangle=\big(\begin{smallmatrix}0\\1\end{smallmatrix}\big)$:
+\begin{equation}
+    |0\rangle \otimes |1\rangle
+    = \begin{pmatrix} 1 \\ 0 \end{pmatrix} \otimes \begin{pmatrix} 0 \\ 1 \end{pmatrix}
+    = \begin{pmatrix} 1\cdot 0 \\ 1\cdot 1 \\ 0\cdot 0 \\ 0\cdot 1 \end{pmatrix}
+    = \begin{pmatrix} 0 \\ 1 \\ 0 \\ 0 \end{pmatrix} \equiv |01\rangle .
+\end{equation}
+Bốn trạng thái cơ sở của hệ hai qubit $\{|00\rangle,|01\rangle,|10\rangle,|11\rangle\}$ chính là bốn vector đơn vị trong $\mathbb{C}^4$. Cứ thêm một qubit thì số chiều nhân đôi, nên một trạng thái tổng quát $n$ qubit là một vector trong $\mathbb{C}^{2^n}$:
+\begin{equation}
+    |\psi\rangle=\sum_{b\in\{0,1\}^n}c_b\,|b\rangle, \qquad \sum_b|c_b|^2=1 .
+\end{equation}
+Chính sự tăng trưởng theo hàm mũ $2^n$ này là nguồn gốc của năng lực biểu diễn phong phú mà học máy lượng tử hướng tới khai thác: chỉ với $n$ qubit, ta thao tác trên $2^n$ biên độ phức đồng thời (ví dụ $n=9$ qubit tương ứng $512$ biên độ).
+
+\noindent\textbf{Vướng víu.} Một trạng thái được gọi là \emph{vướng víu} (entangled) nếu không thể viết thành tích tensor của các trạng thái đơn qubit, ví dụ điển hình là trạng thái Bell $\tfrac{1}{\sqrt{2}}(|00\rangle+|11\rangle)$: khi đo một qubit, kết quả của qubit kia bị xác định tức thời. Vướng víu là tài nguyên tính toán cốt lõi tạo ra các tương quan phi cổ điển giữa các nhóm đặc trưng -- điều mà mạch lượng tử trong khóa luận khai thác thông qua các cổng CNOT (Controlled-NOT). Cần lưu ý định lý không nhân bản (no-cloning): không thể sao chép một trạng thái lượng tử tùy ý, một khác biệt nền tảng so với dữ liệu cổ điển.
+\subsection{Cổng lượng tử (Quantum Gates)}
+Mọi phép biến đổi trạng thái (không kể đo lường) được thực hiện qua các cổng lượng tử unitary $U$ thỏa $U^\dagger U = I$. Tính unitary bảo toàn chuẩn của vector trạng thái (tổng xác suất luôn bằng $1$) và làm cho mọi phép tính lượng tử \emph{thuận nghịch}. Dưới đây là các cổng được sử dụng trong khóa luận cùng ma trận biểu diễn trên cơ sở $\{|0\rangle,|1\rangle\}$:
+\begin{itemize}
+    \item \textbf{Hadamard ($H$):} Tạo trạng thái chồng chất phân bố đều, $H|0\rangle = \tfrac{1}{\sqrt{2}}(|0\rangle+|1\rangle)$, với
+    $H=\tfrac{1}{\sqrt{2}}\left(\begin{smallmatrix}1 & 1\\ 1 & -1\end{smallmatrix}\right)$. Trong ansatz của khóa luận, một tầng Hadamard đặt ở đầu mạch đưa mọi qubit về chồng chất, tạo ``điểm xuất phát'' phong phú trước khi các cổng học được biến đổi.
+    \item \textbf{Các cổng Pauli:} $X=\left(\begin{smallmatrix}0 & 1\\ 1 & 0\end{smallmatrix}\right)$ (đảo bit, tương tự NOT), $Y=\left(\begin{smallmatrix}0 & -i\\ i & 0\end{smallmatrix}\right)$, $Z=\left(\begin{smallmatrix}1 & 0\\ 0 & -1\end{smallmatrix}\right)$ (đảo pha). Ba ma trận Pauli cùng ma trận đơn vị tạo thành cơ sở cho mọi toán tử đơn qubit.
+    \item \textbf{Cổng quay ($R_X, R_Y, R_Z$) và cổng quay tổng quát ($\text{Rot}$):} sinh bởi các Pauli tương ứng, xoay điểm Bloch quanh trục $X, Y, Z$ một góc $\theta$ (trình bày chi tiết ngay dưới đây). Cổng $\text{Rot}(\phi,\theta,\omega)=R_Z(\omega)R_Y(\theta)R_Z(\phi)$ cho phép một qubit đạt tới \emph{bất kỳ} phép quay đơn qubit nào (phân rã Euler) bằng ba tham số. Đây là các cổng đóng vai trò ``trọng số học được'' trong mạch lượng tử tham số hóa, và tính trơn tuần hoàn của chúng theo góc là cơ sở cho việc tính gradient.
+    \item \textbf{CNOT:} Cổng hai qubit đảo trạng thái qubit đích khi qubit điều khiển ở trạng thái $|1\rangle$,
+    $\text{CNOT}=\left(\begin{smallmatrix}1&0&0&0\\0&1&0&0\\0&0&0&1\\0&0&1&0\end{smallmatrix}\right)$; đây là cổng chủ đạo tạo ra vướng víu giữa các qubit. Ví dụ, tác động $\text{CNOT}$ lên $H|0\rangle\otimes|0\rangle$ sinh ra trạng thái Bell. Trong ansatz của khóa luận, một \emph{chuỗi CNOT khép vòng} nối mọi qubit thành vòng, bảo đảm tương quan lan tỏa toàn mạch.
+\end{itemize}
+
+\noindent\textbf{Ma trận của các cổng quay tham số hóa.} Mỗi cổng quay là hàm mũ ma trận của một toán tử Pauli. Khai triển hàm mũ theo chuỗi Taylor và dùng tính chất $P^2=I$ của các Pauli, ta thu được dạng đóng gồm các hàm lượng giác:
+\begin{equation}
+    R_P(\theta) = e^{-i\theta P/2} = \cos\!\Big(\tfrac{\theta}{2}\Big) I \;-\; i\,\sin\!\Big(\tfrac{\theta}{2}\Big) P,
+    \qquad P\in\{X,Y,Z\}.
+\end{equation}
+Thay từng ma trận Pauli vào, ba cổng quay có dạng tường minh:
+\begin{align}
+    R_X(\theta) &= \begin{pmatrix} \cos\tfrac{\theta}{2} & -i\sin\tfrac{\theta}{2} \\[4pt] -i\sin\tfrac{\theta}{2} & \cos\tfrac{\theta}{2} \end{pmatrix}, \\[6pt]
+    R_Y(\theta) &= \begin{pmatrix} \cos\tfrac{\theta}{2} & -\sin\tfrac{\theta}{2} \\[4pt] \sin\tfrac{\theta}{2} & \cos\tfrac{\theta}{2} \end{pmatrix}, \\[6pt]
+    R_Z(\theta) &= \begin{pmatrix} e^{-i\theta/2} & 0 \\[4pt] 0 & e^{i\theta/2} \end{pmatrix}.
+\end{align}
+Điểm cần nhấn mạnh là sự xuất hiện của các hàm $\cos\tfrac{\theta}{2}$ và $\sin\tfrac{\theta}{2}$: đầu ra của mạch phụ thuộc \emph{tuần hoàn và trơn} vào từng tham số góc. Đây không phải một chi tiết kỹ thuật ngẫu nhiên mà là bước đệm bắt buộc để lý giải hiện tượng tuần hoàn của gradient và công thức tính đạo hàm chính xác (quy tắc dịch tham số) sẽ trình bày ở mục~\ref{subsec:pshift}.
+
+Một kết quả nền tảng là bộ cổng $\{$các cổng quay đơn qubit, CNOT$\}$ có tính \emph{phổ dụng} (universal): mọi unitary trên $n$ qubit đều xấp xỉ được bằng cách ghép các cổng này. Nhờ đó, một PQC đủ sâu về nguyên tắc có thể biểu diễn một họ biến đổi rất rộng. Hình~\ref{fig:qc} minh họa một sơ đồ mạch lượng tử tham số hóa tiêu biểu, gồm các tầng Hadamard, cổng quay và cổng vướng víu CNOT xen kẽ.
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.62\textwidth]{fig_quantum_circuit.pdf}
+    \caption{Ví dụ một mạch lượng tử tham số hóa: mỗi dây ngang là một qubit, đi qua cổng Hadamard ($H$) tạo chồng chất, các cổng quay có tham số ($R$, $R_x$, $R_y$) và các cổng vướng víu CNOT, kết thúc bằng phép đo.}
+    \label{fig:qc}
+\end{figure}
+\subsection{Phép đo lượng tử (Measurement)}
+Để trích xuất thông tin cổ điển từ trạng thái lượng tử, mô hình thực hiện phép đo -- một quá trình \emph{bất thuận nghịch} làm sụp đổ trạng thái chồng chất. Theo quy tắc Born, xác suất đo được trạng thái cơ sở $|b\rangle$ là $p(b)=|\langle b|\psi\rangle|^2$. Hai phương pháp đo được sử dụng trong khóa luận là:
+\begin{itemize}
+    \item \textbf{Giá trị kỳ vọng (Expectation value):} $\langle \hat{O} \rangle = \langle \psi | \hat{O} | \psi \rangle$, thường với toán tử Pauli-Z (khi đó $\langle Z\rangle = p(0)-p(1)$), trả về một số thực trong $[-1,1]$. Cách đo này cô đọng trạng thái thành một vô hướng.
+    \item \textbf{Phân bố xác suất trạng thái cơ sở (\texttt{qml.probs}):} Trả về vector độ dài $2^n$ chứa xác suất $p(b)=|\langle b | \psi \rangle|^2$ của từng trạng thái cơ sở $|b\rangle$.
+\end{itemize}
+Sự khác biệt giữa hai cách đo có ý nghĩa thiết kế quan trọng. Đo kỳ vọng chỉ giữ lại một con số, phù hợp cho một cổng vô hướng; còn \texttt{qml.probs} giữ trọn vẹn một vector $2^n$ chiều -- \emph{cùng số chiều với dữ liệu đầu vào} khi $2^n = p_h p_w C$. Chính vì bài toán phân đoạn cần tái tạo một khối đặc trưng không gian (chứ không phải một nhãn), khóa luận chọn đo \texttt{qml.probs} cho các nhánh xử lý lượng tử: vector xác suất giàu thông tin này được định hình lại (reshape) trực tiếp thành một mảnh ảnh đặc trưng để lắp trở lại bản đồ không gian. Trên phần cứng thực, các xác suất này chỉ ước lượng được qua nhiều lần lấy mẫu (shots), kèm ``nhiễu lấy mẫu''; nhưng trên bộ giả lập vector trạng thái mà khóa luận sử dụng, chúng được tính \emph{chính xác}, loại bỏ nhiễu lấy mẫu và làm cho gradient ổn định.
+
+\FloatBarrier
+
+\section{Mô hình Học máy lượng tử (QML)}
+\subsection{Mô hình lai lượng tử -- cổ điển}
+Do phần cứng lượng tử hiện tại còn hạn chế về số qubit và chịu nhiễu (kỷ nguyên NISQ), việc xây dựng một mạng nơ-ron thuần lượng tử là chưa khả thi. Thay vào đó, mô hình lai (hybrid) kết hợp một mạng nơ-ron cổ điển với các khối tính toán lượng tử: nền tảng cổ điển đảm nhiệm trích xuất đặc trưng cơ bản và tối ưu hóa gradient thông qua lan truyền ngược, trong khi mạch lượng tử học các mối tương quan phi tuyến trong không gian Hilbert. Nhờ cơ chế vi phân được (differentiable) của các mạch lượng tử mô phỏng, toàn bộ mô hình lai có thể được huấn luyện đầu-cuối bằng thuật toán hạ gradient.
+\subsection{Mã hóa dữ liệu (Data Encoding)}
+Bước đầu tiên của mọi mạch lượng tử là chuyển dữ liệu cổ điển $x$ thành trạng thái lượng tử $|\psi(x)\rangle$:
+\begin{itemize}
+    \item \textbf{Angle Encoding:} Mã hóa mỗi đặc trưng $x_i$ vào góc quay của một cổng quay đơn qubit (thường là $R_Y$ hoặc $R_X$), áp lên trạng thái khởi tạo $|0\rangle^{\otimes n}$:
+    \begin{equation}
+        |\psi(x)\rangle = \bigotimes_{i=1}^{n} R_Y(x_i)\,|0\rangle
+        = \bigotimes_{i=1}^{n}\Big(\cos\tfrac{x_i}{2}\,|0\rangle + \sin\tfrac{x_i}{2}\,|1\rangle\Big).
+    \end{equation}
+    Vì mỗi đặc trưng chiếm một qubit riêng, cách này cần $n$ qubit cho $n$ đặc trưng: dễ hiện thực và mạch nông (độ sâu hằng số), nhưng \emph{kém hiệu quả về không gian} -- không tận dụng được sự nén theo hàm mũ. Thông thường các đặc trưng được co giãn về khoảng $[0, \pi]$ (hoặc $[-\pi,\pi]$) trước khi mã hóa để tránh sự trùng lặp do tính tuần hoàn của cổng quay.
+    \item \textbf{Amplitude Encoding:} Mã hóa $N$ giá trị đặc trưng vào biên độ xác suất của $n=\lceil\log_2 N\rceil$ qubit. Cụ thể, một vector đặc trưng $x\in\mathbb{R}^{N}$ được chuẩn hóa về đơn vị và gán trực tiếp vào các biên độ của trạng thái $n$ qubit:
+    \begin{equation}
+        |\psi(x)\rangle = \frac{1}{\lVert x\rVert_2}\sum_{b=0}^{N-1} x_b\,|b\rangle,
+        \qquad \sum_{b} \frac{|x_b|^2}{\lVert x\rVert_2^2} = 1,
+    \end{equation}
+    trong đó $|b\rangle$ là các trạng thái cơ sở tính toán. Cơ chế này nén dữ liệu theo hàm mũ (ví dụ một khối $8\times 8\times 8 = 512$ chiều chỉ cần $9$ qubit), rất phù hợp cho chiến lược xử lý ảnh dựa trên mảnh ảnh (patch-based) của khóa luận. Cần lưu ý hai đặc điểm quan trọng: (i) vì phép chuẩn hóa $L_2$, mã hóa biên độ chỉ giữ lại \emph{hướng} của vector đặc trưng chứ không giữ độ lớn tuyệt đối -- do đó việc chuẩn hóa lớp (LayerNormalization) trước khi mã hóa giúp ổn định phân bố đầu vào; (ii) khi chọn số qubit sao cho $2^{n}=N$ đúng bằng số chiều patch thì toàn bộ dung lượng của không gian Hilbert được sử dụng, không lãng phí biên độ. Đánh đổi là mạch chuẩn bị trạng thái (state preparation) có độ sâu tăng theo $N$, nhưng trên môi trường giả lập điều này vẫn khả thi.
+\end{itemize}
+
+\noindent\textbf{Ví dụ cụ thể: nhúng một khối ảnh $2\times 2$ vào 2 qubit.} Để hình dung cách dữ liệu ảnh được ``đưa vào lượng tử'', xét một khối (patch) ảnh xám kích thước $2\times 2$ với bốn cường độ điểm ảnh $x=[x_0, x_1, x_2, x_3]$ (được trải phẳng theo thứ tự hàng). Khối này có $N=4$ giá trị nên chỉ cần $n=\log_2 4 = 2$ qubit. Trước hết, vector được chuẩn hóa $L_2$ để thỏa điều kiện xác suất:
+\begin{equation}
+    x'_k = \frac{x_k}{\sqrt{x_0^2 + x_1^2 + x_2^2 + x_3^2}}, \qquad k=0,1,2,3,
+    \qquad \text{sao cho } \sum_{k} x'^{2}_k = 1.
+\end{equation}
+Bốn giá trị đã chuẩn hóa được gán trực tiếp làm biên độ của bốn trạng thái cơ sở hai qubit:
+\begin{equation}
+    |\psi\rangle = x'_0\,|00\rangle + x'_1\,|01\rangle + x'_2\,|10\rangle + x'_3\,|11\rangle
+    = \begin{pmatrix} x'_0 \\ x'_1 \\ x'_2 \\ x'_3 \end{pmatrix}.
+\end{equation}
+Như vậy toàn bộ nội dung của khối $2\times 2$ được ``gói'' vào trạng thái của chỉ hai qubit, và khi đo theo quy tắc Born, xác suất quan sát mỗi trạng thái cơ sở $|k\rangle$ đúng bằng $x'^{2}_k$ -- tỷ lệ với bình phương cường độ điểm ảnh tương ứng. Đây chính là bước ``nhúng'' được sử dụng trong các nhánh xử lý lượng tử ở Chương~\ref{Chapter4} (với các khối lớn hơn, ví dụ $2\times 4\times 8$ dùng $6$ qubit hay $8\times 8\times 8$ dùng $9$ qubit), thể hiện trực tiếp lợi thế nén theo hàm mũ của mã hóa biên độ.
+
+\subsection{Góc nhìn ánh xạ đặc trưng lượng tử}
+\label{subsec:qfeaturemap}
+Một khung lý thuyết soi sáng vì sao mã hóa lượng tử có thể hữu ích là góc nhìn \emph{ánh xạ đặc trưng} (quantum feature map) \cite{havlicek2019supervised, schuld2019featurehilbert}. Bước mã hóa $x\mapsto|\psi(x)\rangle$ được xem như một phép nhúng phi tuyến dữ liệu cổ điển vào không gian Hilbert số chiều $2^n$ -- tương tự cách hàm nhân (kernel) nhúng dữ liệu vào không gian đặc trưng số chiều cao trong máy học cổ điển. Tích vô hướng giữa hai trạng thái mã hóa định nghĩa một \emph{hàm nhân lượng tử}:
+\begin{equation}
+    \kappa(x, x') = \big|\langle \psi(x)\,|\,\psi(x')\rangle\big|^2,
+\end{equation}
+đo độ ``giống nhau'' của hai mẫu trong không gian Hilbert. Ý tưởng cốt lõi là: nếu ánh xạ đặc trưng lượng tử tạo ra một hình học mà ở đó dữ liệu trở nên dễ phân tách hơn so với không gian gốc, thì phần cổ điển phía sau chỉ cần một ranh giới đơn giản. PQC theo sau có thể được hiểu như việc \emph{học một phép biến đổi} trong không gian đặc trưng này trước khi đo. Đây là cơ sở lý thuyết cho kỳ vọng rằng khối lượng tử, dù chỉ có vài trăm tham số, vẫn có thể nắm bắt các tương tác đặc trưng bậc cao mà một lớp tuyến tính cổ điển khó biểu diễn -- một lập luận sẽ được kiểm chứng thực nghiệm qua phân tích bóc tách ở Chương~\ref{Chapter5}.
+
+\subsection{Mạch lượng tử tham số hóa (PQC/Ansatz)}
+Mạch lượng tử tham số hóa (Parameterized Quantum Circuit -- PQC), hay ansatz, là lõi tính toán học được của mô hình lượng tử. Một PQC là một toán tử unitary phụ thuộc tham số $U(\boldsymbol{\theta})=\prod_{\ell} U_{\ell}(\boldsymbol{\theta}_{\ell})$, biến trạng thái đầu vào $|\psi(x)\rangle$ thành $U(\boldsymbol{\theta})|\psi(x)\rangle$. Về mặt cấu trúc, mỗi lớp gồm hai loại tầng xen kẽ: các cổng quay tham số hóa (đóng vai trò trọng số học được) và các cổng vướng víu như CNOT (tạo tương quan giữa các qubit). Cổng quay đơn qubit sinh bởi các toán tử Pauli có dạng $R_{P}(\theta)=\exp(-i\theta P/2)$, nên đầu ra của PQC là một hàm \emph{tuần hoàn} và trơn theo mỗi tham số; điều này dẫn tới ``quy tắc dịch tham số'' (parameter-shift rule) cho phép tính gradient chính xác trên phần cứng lượng tử, và trên môi trường giả lập thì gradient được tính trực tiếp bằng lan truyền ngược.
+
+Khả năng biểu diễn (expressibility) của PQC -- đo mức độ phủ đều của tập trạng thái $\{U(\boldsymbol{\theta})|\psi\rangle\}$ trên không gian Hilbert -- tăng theo số lớp (depth) và mức độ đan xen vướng víu do các cổng CNOT tạo ra. Tuy nhiên, tồn tại một sự đánh đổi cơ bản: PQC quá sâu và quá vướng víu dễ gặp hiện tượng ``cao nguyên cằn cỗi'' (Barren Plateaus) \cite{mcclean2018barren}, nơi phương sai của gradient triệt tiêu theo hàm mũ với số qubit, khiến mô hình gần như không thể huấn luyện. Do đó việc thiết kế ansatz cần cân bằng giữa năng lực biểu diễn và khả năng tối ưu -- một cân nhắc trực tiếp chi phối việc chọn số lớp mạch cho các nhánh xử lý lượng tử trong Chương~\ref{Chapter4} và được khảo sát bằng thực nghiệm bóc tách ở Chương~\ref{Chapter5}.
+
+\subsection{Quy tắc dịch tham số (Parameter-Shift Rule)}
+\label{subsec:pshift}
+Câu hỏi cốt lõi của việc huấn luyện mô hình lượng tử là: làm thế nào tính đạo hàm của một đại lượng đo (giá trị kỳ vọng) theo các tham số cổng? Gọi hàm mục tiêu là giá trị kỳ vọng của một toán tử quan sát $\hat{O}$ trên trạng thái đầu ra của mạch phụ thuộc tham số $\theta$:
+\begin{equation}
+    f(\theta) = \langle \psi(\theta)\,|\,\hat{O}\,|\,\psi(\theta)\rangle,
+    \qquad |\psi(\theta)\rangle = R_P(\theta)\,|\psi_0\rangle .
+\end{equation}
+Một cách ngây thơ là xấp xỉ vi phân hữu hạn $f'(\theta)\approx [f(\theta+\varepsilon)-f(\theta)]/\varepsilon$; nhưng cách này vừa kém chính xác (sai số bậc nhất theo $\varepsilon$), vừa cực kỳ nhạy với nhiễu lấy mẫu trên phần cứng thực. Điều đặc biệt của các cổng quay là ta có thể tính đạo hàm \emph{chính xác}. Vì $R_P(\theta)=\cos\tfrac{\theta}{2}I - i\sin\tfrac{\theta}{2}P$ (dạng ma trận đã cho ở mục cổng lượng tử), $f(\theta)$ là một hàm điều hòa thuần túy dạng $A\cos\theta + B\sin\theta + C$. Với các hàm như vậy, đạo hàm được tính chính xác bằng \emph{quy tắc dịch tham số} (parameter-shift rule) -- đánh giá lại chính hàm $f$ tại hai điểm dịch đi một lượng $s$:
+\begin{equation}
+    \frac{\partial f}{\partial \theta} = \frac{f(\theta + s) - f(\theta - s)}{2\sin(s)} .
+\end{equation}
+Chọn $s=\tfrac{\pi}{2}$ (điểm làm biểu thức tối giản vì $\sin\tfrac{\pi}{2}=1$), công thức thu gọn thành hiệu của hai lần đánh giá mạch với cùng cấu trúc:
+\begin{equation}
+    \frac{\partial f}{\partial \theta} = \frac{1}{2}\Big[\, f\!\Big(\theta + \tfrac{\pi}{2}\Big) - f\!\Big(\theta - \tfrac{\pi}{2}\Big) \Big] .
+\end{equation}
+Điểm mấu chốt là gradient được tính bằng \emph{chính mạch lượng tử đó} (chỉ dịch tham số), nên nó khả thi cả trên phần cứng thực lẫn trong mô phỏng, và ghép nối liền mạch với lan truyền ngược của phần cổ điển theo quy tắc dây chuyền. Trong khóa luận, các mạch được mô phỏng bằng thiết bị \texttt{default.qubit} với phương pháp vi phân \texttt{backprop} -- gradient được lấy trực tiếp qua đồ thị tính toán, tương đương về mặt kết quả với quy tắc dịch tham số nhưng hiệu quả hơn trên môi trường giả lập. Việc gradient tồn tại ở dạng đóng và chính xác chính là nền tảng cho phép huấn luyện đầu-cuối toàn bộ mô hình lai bằng thuật toán hạ gradient.
+
+\subsection{Cao nguyên cằn cỗi và chiến lược giảm thiểu}
+\label{subsec:barren}
+Hiện tượng cao nguyên cằn cỗi (Barren Plateau) \cite{mcclean2018barren} là một trong những rào cản lớn nhất của học máy lượng tử: với các mạch sâu, khởi tạo ngẫu nhiên và có mức vướng víu cao, phương sai của gradient hàm mất mát suy giảm theo hàm mũ với số qubit,
+\begin{equation}
+    \mathrm{Var}\!\left[\frac{\partial \mathcal{L}}{\partial \theta_k}\right] \sim \mathcal{O}(2^{-n}),
+\end{equation}
+khiến bề mặt mất mát gần như phẳng và thuật toán hạ gradient bế tắc. Các nguyên nhân chính đã được xác định gồm: (i) mạch quá sâu và biểu diễn quá ``ngẫu nhiên'' (xấp xỉ 2-design), (ii) hàm mất mát \emph{toàn cục} (đo trên tất cả các qubit), (iii) mức vướng víu quá mức, và (iv) nhiễu phần cứng. Từ đó, các chiến lược giảm thiểu tương ứng bao gồm dùng mạch nông và cấu trúc, hàm mất mát cục bộ, khởi tạo thông minh, và giới hạn số qubit.
+
+Thiết kế trong khóa luận phù hợp với các nguyên tắc này: mỗi nhánh xử lý chỉ dùng \emph{số qubit nhỏ} ($n\le 9$), \emph{số lớp vừa phải} ($L\le 5$) với cấu trúc ansatz cố định (không ngẫu nhiên hoàn toàn), và được bao bọc bởi kết nối phần dư ở cấp khối để bảo toàn dòng gradient. Đây là lý do vì sao thực nghiệm ở Chương~\ref{Chapter5} không quan sát thấy dấu hiệu suy giảm huấn luyện khi tăng số lớp trong khoảng khảo sát, mà trái lại hiệu năng còn ổn định và cải thiện nhẹ.
+
+\subsection{Bối cảnh các hướng tiếp cận QML và lựa chọn kiến trúc lai}
+\label{subsec:qml_landscape}
+Trước khi trình bày chi tiết kiến trúc đề xuất ở Chương~\ref{Chapter4}, cần định vị lựa chọn thiết kế của khóa luận trong bối cảnh các hướng tiếp cận QML chính hiện nay cho bài toán học có giám sát.
+
+\textbf{Quantum Neural Network (QNN)} là hướng tổng quát nhất: xây dựng mạng nơ-ron lượng tử dựa trên PQC lấy cảm hứng từ kiến trúc mạng nơ-ron cổ điển, thường đóng vai trò khối xử lý trong các mô hình lai~\cite{farhi2018qnn}. Abbas và cộng sự phân tích năng lực biểu diễn của QNN dưới góc độ hình học thông tin, cho thấy trong một số điều kiện QNN có thể đạt hiệu quả tham số cao hơn mạng cổ điển tương ứng~\cite{abbas2021power}.
+
+\textbf{Quantum Convolutional Neural Network (QCNN)}~\cite{cong2019qcnn} thích ứng cấu trúc tích chập cổ điển vào không gian lượng tử bằng các tầng biến đổi unitary xen kẽ tầng gộp (pooling) làm giảm dần số qubit -- phù hợp cho phân loại ảnh lượng tử hóa, nhưng cấu trúc giảm dần số qubit chưa phù hợp cho bài toán cần bảo toàn cấu trúc không gian đầu ra như phân đoạn.
+
+\textbf{Variational Quantum Classifier (VQC)} và các phương pháp \emph{hạt nhân lượng tử} (quantum kernel methods, cùng tinh thần với Quantum Support Vector Machine) khai thác không gian đặc trưng lượng tử số chiều cao để phân tách dữ liệu dễ hơn so với không gian gốc; Havlíček và cộng sự chứng minh thực nghiệm lợi thế này trên phần cứng siêu dẫn thực tế~\cite{havlicek2019supervised}. Nhìn chung, các mô hình biến phân như VQC dựa trên nguyên lý tối ưu hóa lặp cổ điển--lượng tử của lớp thuật toán Variational Quantum Algorithms (VQA)~\cite{cerezo2021vqa}.
+
+\emph{Vì sao chọn PQC lai thay vì các hướng trên.} QNN/VQC/QSVM thuần lượng tử nêu trên chủ yếu được thiết kế và kiểm chứng cho bài toán \emph{phân loại} (đầu ra là một nhãn hoặc một số vô hướng), trong khi phân đoạn ảnh đòi hỏi khôi phục một trường dự đoán có cấu trúc không gian đầy đủ $H\times W$. QCNN tuy xử lý được dữ liệu ảnh nhưng cấu trúc pooling giảm dần số qubit lại đi ngược với yêu cầu bảo toàn độ phân giải không gian của phân đoạn. Vì vậy, khóa luận chọn hướng \emph{PQC lai nhúng tại bottleneck}: giữ nguyên bộ khung cổ điển U-Net đảm nhiệm việc khôi phục không gian (thế mạnh đã được kiểm chứng của kiến trúc cổ điển), trong khi mạch PQC chỉ đảm nhiệm vai trò trích xuất đặc trưng cục bộ tại vùng cổ chai có độ phân giải thấp nhất -- nơi chi phí mô phỏng khả thi nhất (Chương~\ref{Chapter4}).
+
+\FloatBarrier
+
+\section{Mixture of Experts (MoE)}
+\subsection{Kiến trúc MoE tổng quát}
+Ý tưởng Mixture of Experts bắt nguồn từ công trình kinh điển của Jacobs và cộng sự (1991) về hỗn hợp các chuyên gia cục bộ thích nghi \cite{jacobs1991moe}, dựa trên nguyên lý ``chia để trị'': một bài toán phức tạp được phân rã thành các bài toán con, mỗi bài do một mạng con riêng đảm nhiệm. Khái niệm này được hồi sinh mạnh mẽ trong học sâu hiện đại qua lớp MoE định tuyến thưa của Shazeer và cộng sự (2017) \cite{shazeer2017moe} và các mô hình quy mô lớn như Switch Transformer \cite{fedus2022switch}. Thay vì để toàn bộ mạng xử lý mọi đầu vào, MoE gồm một tập hợp các mạng con độc lập, trong tài liệu gốc gọi là ``chuyên gia'' (experts) $E_1, \dots, E_M$ -- để tránh gây hiểu nhầm rằng mỗi mạng con có vai trò chuyên môn hóa như con người, khóa luận gọi các mạng con này là \emph{nhánh xử lý} -- cùng một mạng định tuyến (router/gating network) quyết định mức độ đóng góp của từng nhánh đối với mỗi đầu vào. Sức hấp dẫn cốt lõi của MoE là khả năng \emph{tách rời dung lượng khỏi chi phí}: tổng số tham số của mô hình tăng theo số nhánh xử lý, nhưng nếu định tuyến thưa thì chi phí tính toán cho mỗi đầu vào gần như không đổi.
+\subsection{Cơ chế định tuyến (Routing)}
+Mạng định tuyến sinh ra một phân bố trọng số thông qua hàm Softmax:
+\begin{equation}
+    w(x) = \text{Softmax}\big(g(x)\big), \qquad w_i \ge 0, \quad \sum_{i=1}^{M} w_i = 1,
+\end{equation}
+với $g(x)$ là các logit định tuyến. Đầu ra của khối MoE là tổ hợp có trọng số của các nhánh xử lý:
+\begin{equation}
+    y = \sum_{i=1}^{M} w_i(x)\, E_i(x).
+\end{equation}
+Cơ chế này cho phép mỗi nhánh xử lý đảm nhiệm riêng một loại đặc trưng hoặc một vùng không gian khác nhau, tăng năng lực mô hình mà không nhất thiết làm tăng tuyến tính chi phí suy luận (Hình~\ref{fig:moe}).
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.78\textwidth]{fig_moe.pdf}
+    \caption{Khung Mixture of Experts: một mạng định tuyến (router) sinh trọng số softmax $w_i(x)$ phân bổ cho các nhánh xử lý $E_i$ chạy song song, đầu ra là tổ hợp có trọng số $y=\sum_i w_i(x)E_i(x)$.}
+    \label{fig:moe}
+\end{figure}
+\FloatBarrier
+
+\noindent\textbf{Định tuyến dày và định tuyến thưa.} Có hai chế độ định tuyến. \emph{Định tuyến dày} (dense/soft routing) sử dụng mọi nhánh xử lý với trọng số softmax như công thức trên, cho gradient trơn và ổn định nhưng phải tính tất cả các nhánh. \emph{Định tuyến thưa} (sparse/top-$k$) chỉ kích hoạt $k$ nhánh có logit cao nhất cho mỗi đầu vào, tiết kiệm tính toán ở quy mô lớn nhưng gây gradient không liên tục và cần kỹ thuật ổn định. Trong khóa luận, do chỉ có ba nhánh xử lý và mục tiêu là \emph{trộn biểu diễn đa tỷ lệ} (chứ không phải tiết kiệm tính toán), cơ chế \emph{định tuyến dày theo từng điểm ảnh} được lựa chọn: mỗi vị trí không gian nhận một tổ hợp lồi của cả ba nhánh, cho phép nội suy mượt giữa các tỷ lệ và giữ cho toàn khối khả vi trơn.
+
+\subsection{Vấn đề sụp đổ nhánh xử lý (Expert Collapse)}
+MoE thường gặp hiện tượng ``giàu càng giàu'' (rich-get-richer), khi router học cách thiên vị một vài nhánh xử lý và bỏ không các nhánh còn lại (expert collapse), làm lãng phí dung lượng mô hình. Trong MoE quy mô lớn, người ta thường thêm một hàm mất mát cân bằng tải (load-balancing loss) để khuyến khích router phân bổ đều. Trong ngữ cảnh lượng tử được đề xuất ở Chương~\ref{Chapter4}, khóa luận giải quyết vấn đề này theo hướng kiến trúc thay vì thêm hàm phạt: router được cung cấp \emph{cả đặc trưng đầu vào gốc} bên cạnh đầu ra ba nhánh xử lý, giúp nó có đủ ngữ cảnh không gian để phân bổ hợp lý theo từng vùng ảnh thay vì thiên vị cố định một nhánh. Việc theo dõi phân bố trọng số định tuyến (mục phân tích ở Chương~\ref{Chapter5}) đóng vai trò chẩn đoán để phát hiện sụp đổ nếu có.
+
+\subsection{Đo lường và kiểm định cân bằng định tuyến}
+\label{subsec:router_balance_stats}
+Để lượng hóa mức độ cân bằng của router thay vì chỉ suy luận từ kiến trúc, khóa luận sử dụng ba chỉ số mô tả và một kiểm định thống kê so sánh, áp dụng cho phân tích ở Chương~\ref{Chapter5}.
+
+\noindent\textbf{Entropy định tuyến.} Tại mỗi điểm ảnh, router sinh một phân bố xác suất $w=(w_1,\dots,w_M)$ trên $M$ nhánh (Softmax). Entropy Shannon của phân bố này,
+\begin{equation}
+    H(w) = -\sum_{i=1}^{M} w_i \log w_i,
+\end{equation}
+đạt giá trị lớn nhất $H_{\max}=\log M$ khi $w$ phân bố đều tuyệt đối, và giảm về $0$ khi router dồn hết trọng số cho một nhánh duy nhất. Khóa luận báo cáo $H(w)$ trung bình trên toàn bộ điểm ảnh và ảnh, quy về phần trăm của $H_{\max}$ để dễ so sánh.
+
+\noindent\textbf{Imbalance range và hệ số biến thiên (CV).} Gọi $\bar{w}_i$ là tỷ trọng trung bình của nhánh $i$ trên toàn bộ điểm ảnh và ảnh kiểm định. Hai chỉ số bổ sung đo mức mất cân bằng \emph{giữa} các nhánh:
+\begin{equation}
+    \text{imbalance range} = \max_i \bar{w}_i - \min_i \bar{w}_i,
+    \qquad
+    \text{CV} = \frac{\mathrm{std}_i(\bar{w}_i)}{\mathrm{mean}_i(\bar{w}_i)}.
+\end{equation}
+Cả hai càng gần $0$ thì tải giữa các nhánh càng đồng đều.
+
+\noindent\textbf{Kiểm định Mann-Whitney U và rank-biserial $r$.} Để so sánh xem hành vi định tuyến có khác biệt \emph{có ý nghĩa thống kê} giữa hai điều kiện (ví dụ giữa hai tập dữ liệu PH2 và GlaS) hay không, khóa luận dùng kiểm định phi tham số Mann-Whitney U -- phù hợp vì hai tập ảnh kiểm định là hai mẫu \emph{độc lập, không ghép cặp}, và không thể giả định phân phối chuẩn cho tỷ trọng router (vốn bị chặn trong $[0,1]$). Với hai mẫu $X=\{x_1,\dots,x_{n_1}\}$ và $Y=\{y_1,\dots,y_{n_2}\}$ (ví dụ tỷ trọng trung bình của cùng một nhánh, tính trên từng ảnh của mỗi tập), thống kê $U$ được tính từ tổng hạng (rank) của mẫu gộp:
+\begin{equation}
+    U = R_1 - \frac{n_1(n_1+1)}{2},
+\end{equation}
+với $R_1$ là tổng hạng của các phần tử $X$ trong dãy xếp hạng chung của $X\cup Y$. Giả thuyết $H_0$: hai mẫu đến từ cùng một phân phối (không khác biệt hệ thống). Giá trị $p$ nhỏ (thường lấy ngưỡng $\alpha=0.05$) bác bỏ $H_0$, cho thấy khác biệt quan sát được khó xảy ra do ngẫu nhiên. Đi kèm $p$, cỡ hiệu ứng (effect size) được báo cáo bằng hệ số tương quan rank-biserial:
+\begin{equation}
+    r = 1 - \frac{2U}{n_1 n_2}, \qquad r \in [-1, 1],
+\end{equation}
+trong đó $|r|$ gần $1$ cho biết mức chênh lệch giữa hai nhóm lớn và nhất quán (một nhóm gần như luôn có giá trị cao hơn nhóm kia), còn $r$ gần $0$ cho biết hai phân phối trộn lẫn nhiều, khác biệt (nếu có) chỉ mang tính biên.
+
+\FloatBarrier
+
+\section{Mô hình không gian trạng thái và cơ chế quét chọn lọc (Mamba)}
+\label{sec:ssm}
+Bên cạnh các khối lượng tử, mô hình đề xuất còn tích hợp một khối chuỗi \emph{lấy cảm hứng từ} Mamba nhằm mô hình hóa các phụ thuộc tầm xa giữa các vị trí không gian ở vùng nút thắt cổ chai. Phần này trình bày nền tảng của mô hình không gian trạng thái (State Space Model -- SSM) và cơ chế quét chọn lọc, làm cơ sở cho khối \texttt{LSS} trong Chương~\ref{Chapter4}. Cần nhấn mạnh rằng khối LSS của khóa luận không phải là kiến trúc Mamba nguyên bản, mà là một hiện thực rút gọn, nhẹ, kế thừa \emph{ý tưởng} quét chọn lọc của Mamba.
+
+\subsection{Mô hình không gian trạng thái liên tục}
+Một mô hình không gian trạng thái (State Space Model) tuyến tính~\cite{gu2022s4} ánh xạ một tín hiệu đầu vào $u(t)$ sang đầu ra $y(t)$ thông qua một trạng thái ẩn $h(t)$ theo hệ phương trình vi phân:
+\begin{equation}
+    h'(t) = A\, h(t) + B\, u(t), \qquad y(t) = C\, h(t),
+\end{equation}
+trong đó $A$ là ma trận chuyển trạng thái, $B$ và $C$ là các ma trận chiếu đầu vào và đầu ra. Ma trận $A$ điều khiển cách thông tin quá khứ được ghi nhớ hay lãng quên theo thời gian.
+
+\subsection{Rời rạc hóa}
+Để áp dụng cho dữ liệu rời rạc (chuỗi token), hệ liên tục được rời rạc hóa với bước $\Delta$. Dùng phép giữ bậc không (zero-order hold), ta thu được dạng hồi quy:
+\begin{equation}
+    h_k = \bar{A}\, h_{k-1} + \bar{B}\, u_k, \qquad y_k = C\, h_k,
+\end{equation}
+với $\bar{A} = \exp(\Delta A)$ và $\bar{B} = (\Delta A)^{-1}(\exp(\Delta A) - I)\,\Delta B$. Dạng hồi quy này cho phép tính toán tuần tự theo chuỗi với độ phức tạp tuyến tính theo chiều dài chuỗi, thay vì độ phức tạp bậc hai như cơ chế self-attention \cite{gu2022s4}.
+
+\noindent\textbf{Tính hai mặt hồi quy -- tích chập.} Với SSM tuyến tính bất biến theo thời gian, khai triển đệ quy $h_k = \bar{A}h_{k-1}+\bar{B}u_k$ với $h_0=0$ cho nghiệm tường minh $y_k = \sum_{j=0}^{k} C\bar{A}^{\,k-j}\bar{B}\,u_j$. Đây chính là một phép \emph{tích chập} của chuỗi đầu vào với nhân $\bar{K}=(C\bar{B}, C\bar{A}\bar{B}, C\bar{A}^2\bar{B},\dots)$. Nhờ tính hai mặt này, SSM có thể huấn luyện song song ở dạng tích chập (nhanh trên GPU) nhưng suy luận tuần tự ở dạng hồi quy (bộ nhớ hằng số). Ma trận $A$ được thiết kế đặc biệt (ví dụ theo lý thuyết HiPPO trong S4 \cite{gu2022s4}) để ghi nhớ lịch sử dài một cách có nguyên tắc. Chính cấu trúc này giúp SSM đạt độ phức tạp tuyến tính $\mathcal{O}(L)$ theo chiều dài chuỗi $L$, so với $\mathcal{O}(L^2)$ của self-attention -- một ưu thế quyết định khi cần tổng hợp phụ thuộc tầm xa với chi phí thấp.
+
+\subsection{Cơ chế chọn lọc (Selective Scan)}
+Điểm cải tiến then chốt của Mamba \cite{gu2023mamba} so với các SSM tuyến tính bất biến theo thời gian là làm cho các tham số $\bar{B}$, $C$ (và $\Delta$) \emph{phụ thuộc vào đầu vào}. Nhờ đó, mô hình có khả năng \emph{chọn lọc} thông tin: quyết định nội dung nào đáng ghi nhớ vào trạng thái ẩn và nội dung nào cần bỏ qua, tùy theo từng token cụ thể. Cơ chế này mang lại năng lực mô hình hóa ngữ cảnh linh hoạt tương tự attention nhưng vẫn giữ chi phí tính toán tuyến tính.
+
+Khối \texttt{SelectiveScan} sử dụng trong khóa luận (là lõi của khối LSS ở Chương~\ref{Chapter4}) là một hiện thực rút gọn theo tinh thần này. Với chuỗi đầu vào $x_t \in \mathbb{R}^{C}$ (mỗi kênh được xử lý độc lập, tức $A$ đường chéo), hệ số nhớ được ràng buộc về khoảng ổn định $(0,1)$ bằng:
+\begin{equation}
+    a = \exp\!\big(-\text{softplus}(\log a)\big) \in (0,1)^{C},
+\end{equation}
+trong đó $\log a$ là tham số học được. Hai cổng phụ thuộc đầu vào được sinh bởi các phép chiếu tuyến tính kèm sigmoid, tạo nên tính chọn lọc:
+\begin{equation}
+    b_t = \sigma(W_b x_t), \qquad c_t = \sigma(W_c x_t).
+\end{equation}
+Đầu vào được lọc qua cổng $b_t$ trước khi đưa vào trạng thái, và phép quét tuần tự cập nhật trạng thái ẩn theo công thức hồi quy:
+\begin{equation}
+    u_t = b_t \odot x_t, \qquad h_t = a \odot h_{t-1} + u_t,
+\end{equation}
+với $\odot$ là phép nhân theo từng phần tử và $h_0 = \mathbf{0}$. Cuối cùng, đầu ra được điều biến bởi cổng $c_t$:
+\begin{equation}
+    y_t = h_t \odot c_t.
+\end{equation}
+Nhờ $a \in (0,1)$, ảnh hưởng của một token lên trạng thái suy giảm theo cấp số nhân đối với khoảng cách, giúp mô hình vừa ghi nhớ thông tin tầm xa vừa duy trì tính ổn định số học trong quá trình quét. Đây chính là thành phần cho phép khối bottleneck của HQMoSS-Net tổng hợp phụ thuộc không gian giữa các vùng ảnh với chi phí tuyến tính, bổ sung cho khả năng trích xuất đặc trưng cục bộ của các nhánh xử lý lượng tử (Hình~\ref{fig:ssm}).
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.9\textwidth]{fig_mamba_ssm.pdf}
+    \caption{Cơ chế quét chọn lọc của Mamba: trạng thái ẩn cập nhật theo công thức hồi quy $h_t=a\odot h_{t-1}+b_t\odot x_t$ với các cổng $b_t, c_t$ phụ thuộc đầu vào, cho phép mô hình hóa phụ thuộc tầm xa với chi phí tuyến tính.}
+    \label{fig:ssm}
+\end{figure}
+
+\FloatBarrier
+
+\section{Trí tuệ nhân tạo khả giải thích và Seg-Grad-CAM}
+\label{sec:xai}
+
+\subsection{Khái niệm, phân loại và vị trí của Seg-Grad-CAM}
+\label{subsec:xai_taxonomy}
+Trước khi trình bày công thức cụ thể, cần định vị công cụ được chọn trong bức tranh chung của Trí tuệ nhân tạo khả giải thích (Explainable AI -- XAI). Về khái niệm, XAI đề cập đến các kỹ thuật giúp kết quả của một mô hình học máy có thể được diễn giải và con người hiểu được lý do dẫn tới kết quả đó -- trái ngược với khái niệm ``hộp đen'' (black box), khi ngay cả người thiết kế cũng không thể giải thích vì sao mô hình đưa ra một quyết định cụ thể nào đó~\cite{arrieta2020xai}. Một mô hình lai lượng tử -- cổ điển như HQMoSS-Net về bản chất càng thuộc dạng hộp đen sâu hơn: ngay cả khi dự đoán chính xác, ta vẫn khó biết nó thực sự dựa vào đâu để quyết định, và sự hiện diện của các mạch lượng tử càng làm tính khó diễn giải thêm sâu. Trong các lĩnh vực rủi ro cao như y tế, cần phân biệt rõ giữa \emph{độ chính xác} (accuracy) và \emph{khả năng giải thích} (explainability): nhiều tác giả lập luận rằng với các quyết định có rủi ro cao, nên ưu tiên xây dựng mô hình vốn dĩ khả giải thích thay vì cố giải thích ngược một mô hình hộp đen sau khi đã huấn luyện xong~\cite{rudin2019blackbox}. Khóa luận không đi theo hướng thiết kế mô hình vốn dĩ khả giải thích (vốn thường đánh đổi bằng năng lực biểu diễn), mà chọn bổ sung một bước diễn giải hậu kiểm nhẹ nhàng nhằm củng cố niềm tin rằng mô hình đang ``nhìn'' đúng vùng tổn thương, chứ không đặt XAI làm mục tiêu nghiên cứu trọng tâm.
+
+Các phương pháp XAI thường được phân loại theo ba tiêu chí~\cite{arrieta2020xai}:
+\begin{itemize}
+    \item \textbf{Theo mức độ giải thích:} giải thích toàn cục (\emph{global}) mô tả hành vi mô hình trên quy mô toàn bộ tập dữ liệu, còn giải thích cục bộ (\emph{local}) tập trung diễn giải một dự đoán cụ thể cho một mẫu duy nhất.
+    \item \textbf{Theo thời điểm áp dụng:} khả giải thích tự thân (\emph{intrinsic}) là các mô hình vốn minh bạch ngay từ thiết kế (ví dụ cây quyết định), còn hậu kiểm (\emph{post-hoc}) là kỹ thuật XAI áp dụng sau khi mô hình đã huấn luyện xong mà không làm thay đổi cấu trúc của nó.
+    \item \textbf{Theo sự phụ thuộc vào mô hình:} \emph{model-specific} chỉ dùng được cho một kiến trúc/họ mô hình cụ thể (thường khai thác cấu trúc nội bộ như gradient), còn \emph{model-agnostic} áp dụng được cho bất kỳ mô hình nào vì chỉ dựa trên quan hệ đầu vào--đầu ra mà không cần biết cấu trúc bên trong (ví dụ LIME, SHAP).
+\end{itemize}
+Theo khung phân loại này, Seg-Grad-CAM~\cite{vinogradova2020seggradcam} -- công cụ được khóa luận chọn -- là một kỹ thuật \emph{cục bộ} (giải thích từng ảnh riêng lẻ), \emph{hậu kiểm} (áp dụng sau khi HQMoSS-Net đã huấn luyện xong) và \emph{model-specific dựa trên gradient} (cần truy cập trực tiếp bản đồ kích hoạt và gradient nội bộ của mô hình).
+
+\subsection{So sánh lý thuyết một số kỹ thuật CAM dựa trên gradient}
+\label{subsec:xai_cam_compare}
+Trong họ các kỹ thuật CAM (Class Activation Mapping), Seg-Grad-CAM kế thừa trực tiếp công thức trọng số kênh của Grad-CAM gốc~\cite{selvaraju2017gradcam} (trung bình không gian của gradient, trình bày ở mục~\ref{subsec:xai_seggradcam}). Một số biến thể khác trong cùng họ dùng công thức trọng số khác về bản chất toán học, đáng nêu ra ở đây để làm nền tảng \emph{lý thuyết} cho lựa chọn phương pháp; các biểu hiện \emph{thực nghiệm} cụ thể của từng phương pháp trên dữ liệu y sinh của khóa luận được phân tích riêng ở mục~\ref{subsec:xai_method} (Chương~\ref{Chapter5}).
+
+\emph{Grad-CAM++}~\cite{chattopadhay2018gradcampp} thay trọng số trung bình không gian $\alpha_k$ dùng chung cho cả kênh bằng một trọng số \emph{riêng theo từng điểm ảnh} $\alpha_{ij}^{k}$, tính từ đạo hàm bậc hai và bậc ba của điểm số $S$ theo bản đồ kích hoạt $A^k$:
+\begin{equation}
+    \alpha_k = \sum_{i,j} \alpha_{ij}^{k}\,\mathrm{ReLU}\!\left(\frac{\partial S}{\partial A^k_{i,j}}\right),
+    \qquad
+    \alpha_{ij}^{k} = \frac{\dfrac{\partial^2 S}{(\partial A^k_{i,j})^2}}{2\dfrac{\partial^2 S}{(\partial A^k_{i,j})^2} + \sum\limits_{a,b} A^k_{a,b}\dfrac{\partial^3 S}{(\partial A^k_{i,j})^3}},
+\end{equation}
+trong đó $(i,j)$ là tọa độ điểm ảnh trên bản đồ kích hoạt kênh $k$, còn $(a,b)$ duyệt qua mọi vị trí không gian khi tính tổng ở mẫu số. Mục tiêu là định vị tốt hơn khi có nhiều đối tượng cùng lớp trong ảnh, nhưng việc dùng đạo hàm bậc cao khiến trọng số này nhạy hơn với độ cong của bản đồ kích hoạt -- một đặc tính có thể làm nổi bật vùng biên chuyển tiếp thay vì lõi đối tượng khi bản đồ kích hoạt biến thiên mạnh.
+
+\emph{Eigen-CAM}~\cite{muhammad2020eigencam} đi theo hướng khác hẳn: không dùng gradient, mà phân tích giá trị kỳ dị (Singular Value Decomposition -- SVD) của bản đồ kích hoạt trải phẳng $A\in\mathbb{R}^{HW\times K}$ ($K$ là số kênh) và lấy thành phần chính đầu tiên làm bản đồ nhiệt:
+\begin{equation}
+    A = U\Sigma V^\top, \qquad L_{\text{Eigen-CAM}} = A\,v_1,
+\end{equation}
+trong đó $U, V$ là các ma trận trực giao chứa vector kỳ dị trái/phải, $\Sigma$ là ma trận đường chéo các giá trị kỳ dị, và $v_1$ là vector kỳ dị phải đầu tiên (cột đầu của $V$, ứng với giá trị kỳ dị lớn nhất). Vì không dùng gradient hay điểm số theo lớp, Eigen-CAM \emph{không phụ thuộc lớp} (class-agnostic) và không cần lan truyền ngược, nhưng cũng vì vậy nó phản ánh cấu trúc nổi bật nhất của đặc trưng nói chung chứ không chắc là đặc trưng \emph{liên quan tới quyết định} của mô hình -- khác biệt bản chất so với Grad-CAM/Grad-CAM++ vốn gắn trực tiếp với điểm số dự đoán qua gradient.
+
+Ba công thức trên cho thấy khác biệt không chỉ ở hiệu năng thực nghiệm mà ngay ở bản chất toán học: Grad-CAM dùng trung bình không gian của đạo hàm bậc nhất, Grad-CAM++ dùng trọng số cục bộ từ đạo hàm bậc cao, còn Eigen-CAM bỏ hẳn gradient để dùng phân tích phổ tuyến tính -- đây là cơ sở lý thuyết cho việc khóa luận chọn hướng Grad-CAM (qua mở rộng Seg-Grad-CAM) làm phương pháp chính thức.
+
+\subsection{Seg-Grad-CAM cho bài toán phân đoạn}
+\label{subsec:xai_seggradcam}
+Seg-Grad-CAM~\cite{vinogradova2020seggradcam} là một mở rộng của Grad-CAM~\cite{selvaraju2017gradcam} cho bài toán phân đoạn, sinh ra một bản đồ nhiệt (heatmap) làm nổi bật những vùng ảnh có ảnh hưởng lớn nhất tới dự đoán. Vì đầu ra phân đoạn là một trường xác suất $\hat{Y}\in[0,1]^{H\times W}$ (không phải một điểm số vô hướng như phân loại), Seg-Grad-CAM định nghĩa điểm số cần lấy gradient là \emph{tổng đáp ứng dự đoán trong một vùng quan tâm} (Region of Interest -- RoI) $\mathcal{R}$:
+\begin{equation}
+    S = \sum_{(i,j)\in \mathcal{R}} \hat{Y}_{i,j}.
+\end{equation}
+với $\mathcal{R}$ là vùng foreground mà mô hình dự đoán ($\hat{Y}_{i,j}>0.5$). Gọi $A^{k}$ là bản đồ kích hoạt của kênh $k$ tại tầng tích chập áp chót của decoder; trọng số của mỗi kênh là trung bình không gian của gradient điểm số:
+\begin{equation}
+    \alpha_{k} = \frac{1}{Z}\sum_{i,j}\frac{\partial S}{\partial A^{k}_{i,j}},
+    \qquad Z = H'\times W'.
+\end{equation}
+Bản đồ nhiệt được tổng hợp bằng tổ hợp tuyến tính có trọng số, lọc dương bằng ReLU (chỉ giữ đóng góp \emph{ủng hộ} quyết định), rồi chuẩn hóa về $[0,1]$ và nội suy song tuyến về kích thước ảnh gốc:
+\begin{equation}
+    L_{\text{Seg-Grad-CAM}} = \mathrm{ReLU}\!\left(\sum_{k}\alpha_{k}\,A^{k}\right),
+    \qquad
+    \widetilde{L} = \frac{L}{\max L + \varepsilon}.
+\end{equation}
+
+Hình~\ref{fig:seggradcam_theory} tóm tắt quy trình.
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.85\textwidth]{fig_seggradcam.pdf}
+    \caption{Quy trình Seg-Grad-CAM: gradient của điểm số vùng quan tâm $S$ lan truyền ngược về tầng tích chập đích để tính trọng số kênh $\alpha_k$, tổ hợp và lọc dương thành bản đồ nhiệt phủ lên ảnh gốc (đỏ = đáp ứng cao).}
+    \label{fig:seggradcam_theory}
+\end{figure}
+
+\subsection{Diễn giải mô hình lai lượng tử -- cổ điển}
+\label{subsec:xai_hybrid}
+Áp dụng XAI cho một mô hình lai như HQMoSS-Net đặt ra một thách thức riêng so với mạng nơ-ron cổ điển thông thường. Các nghiên cứu gần đây chỉ ra rằng mô hình lai lượng tử -- cổ điển (Hybrid Quantum Machine Learning -- HQML) đặt ra khó khăn diễn giải đặc thù do độ phức tạp vốn có của việc kết hợp hai loại tính toán khác bản chất, và hiện vẫn thiếu các phương pháp XAI được thiết kế chuyên biệt cho kiến trúc lai~\cite{barua2025quxai}. Cụ thể, nhiễu từ dữ liệu cổ điển (nhiễu ảnh, biến thiên ánh sáng, độ tương phản) có thể cộng hưởng với nhiễu phát sinh từ quá trình mã hóa và đo lường lượng tử, khiến việc quy kết một vùng ảnh cụ thể là ``quan trọng'' trở nên kém tin cậy hơn nếu công cụ diễn giải chỉ nhìn được vào phần cổ điển của mô hình.
+
+May mắn thay, vì các mạch lượng tử mô phỏng trong khóa luận vẫn hoàn toàn khả vi (mục~\ref{subsec:pshift}), gradient chảy liền mạch xuyên suốt cả khối lượng tử lẫn cổ điển trong cùng một đồ thị tính toán. Nhờ đó, Seg-Grad-CAM -- vốn là một phương pháp \emph{model-specific dựa trên gradient} (mục~\ref{subsec:xai_taxonomy}) -- không bị giới hạn ở việc chỉ ``soi'' được phần cổ điển, mà phản ánh trung thực dòng thông tin của \emph{toàn bộ} mô hình lai, kể cả đóng góp từ các nhánh xử lý lượng tử. Đây là lợi thế đặc thù của việc chọn một kỹ thuật gradient-based thay vì một phương pháp model-agnostic như SHAP: các phương pháp model-agnostic thường được xem là phù hợp khi không có (hoặc không muốn phụ thuộc vào) quyền truy cập cấu trúc nội bộ mô hình~\cite{barua2025quxai}, nhưng đổi lại chúng không tận dụng được đường truyền gradient sẵn có; trong khi đó, việc mạch lượng tử của khóa luận khả vi cho phép khai thác trực tiếp thế mạnh của phương pháp gradient-based mà không phải đánh đổi khả năng nhìn xuyên qua phần lượng tử. Dĩ nhiên, Seg-Grad-CAM vẫn chỉ là một công cụ diễn giải hỗ trợ chứ không phải bằng chứng nhân quả tuyệt đối; trong khóa luận, nó đóng vai trò một bước kiểm chứng định tính (Chương~\ref{Chapter5}) đi kèm các chỉ số định lượng, góp phần nâng độ tin cậy cho kết luận.
+
+\subsection{Các độ đo định lượng đánh giá khả năng diễn giải}
+\label{subsec:xai_metrics_formula}
+Để đánh giá chất lượng bản đồ nhiệt một cách định lượng (áp dụng ở Chương~\ref{Chapter5}), khóa luận dùng thêm một số chỉ số bên cạnh IoU/Dice thông thường. Gọi $C \in [0,1]^{H\times W}$ là bản đồ nhiệt CAM (liên tục) và $G \in \{0,1\}^{H\times W}$ là ground-truth.
+
+\textbf{IoU/Dice (Otsu) và IoU/Dice (matched).} Vì $C$ là một bản đồ liên tục, cần nhị phân hóa thành $M \in \{0,1\}^{H\times W}$ trước khi tính độ chồng lấp với $G$ theo đúng công thức đã nêu ở mục~\ref{subsec:metrics} (xem $M$ đóng vai trò dự đoán, $G$ đóng vai trò nhãn thực). Khóa luận dùng song song hai cách chọn ngưỡng nhị phân hóa khác nhau, cho ra hai cặp chỉ số riêng biệt:
+\begin{itemize}
+    \item \emph{Ngưỡng Otsu} -- ngưỡng $t^{*}$ được chọn tự động bằng phương pháp Otsu: cực đại hóa phương sai \emph{giữa hai lớp} (nền/đối tượng) trên biểu đồ tần suất giá trị của $C$,
+    \begin{equation}
+        t^{*} = \arg\max_{t}\ w_0(t)\,w_1(t)\,\big(\mu_0(t)-\mu_1(t)\big)^2, \qquad M = \mathbb{1}[C > t^{*}],
+    \end{equation}
+    trong đó $w_0(t), w_1(t)$ là tỷ trọng (số điểm ảnh) và $\mu_0(t), \mu_1(t)$ là giá trị trung bình của hai lớp $\{C \le t\}$ và $\{C > t\}$. Cặp chỉ số tương ứng gọi là \emph{IoU (Otsu)}, \emph{Dice (Otsu)} -- đóng vai trò chỉ số đối chiếu.
+    \item \emph{Ngưỡng area-matched} -- với mỗi ảnh, ngưỡng $t$ được chọn theo phân vị của $C$ sao cho diện tích vùng $M=\mathbb{1}[C>t]$ đúng bằng diện tích đối tượng của $G$ ở chính ảnh đó:
+    \begin{equation}
+        t = \mathrm{P}_{100(1-\bar{G})}(C), \qquad \bar{G} = \frac{1}{HW}\sum_{i,j} G_{i,j},
+    \end{equation}
+    với $\mathrm{P}_q(\cdot)$ là phân vị thứ $q$ và $\bar{G}$ là tỷ lệ diện tích đối tượng trong $G$; sau đó $M$ có thể được hậu xử lý thêm bằng lọc connected-component tùy đặc tính từng bộ dữ liệu (Chương~\ref{Chapter5}). Cặp chỉ số tương ứng gọi là \emph{IoU (matched)}, \emph{Dice (matched)} -- được xem là cặp chỉ số định vị \emph{chính}, vì không phụ thuộc giả định phân phối hai đỉnh vốn có thể sai với CAM lệch một phía (khác ngưỡng Otsu).
+\end{itemize}
+
+\emph{Energy Pointing Game} -- tỷ lệ ``năng lượng'' CAM liên tục rơi vào vùng ground-truth, không phụ thuộc ngưỡng nhị phân hóa:
+\begin{equation}
+    \text{EPG} = \frac{\sum_{(i,j)} C_{i,j}\, G_{i,j}}{\sum_{(i,j)} C_{i,j} + \varepsilon}.
+\end{equation}
+
+\emph{Boundary IoU}~\cite{cheng2021boundaryiou} -- IoU tính riêng trên dải biên rộng $d$ pixel, với $\partial_d(\cdot)$ là dải biên (phần mặt nạ trừ đi phần lõi sau khi co ảnh $d$ lần), nhằm đánh giá độ khớp đường viền thay vì chỉ diện tích tổng thể:
+\begin{equation}
+    \text{Boundary IoU} = \frac{\lvert \partial_d M \cap \partial_d G \rvert}{\lvert \partial_d M \cup \partial_d G \rvert}.
+\end{equation}
+
+\emph{Hausdorff Distance 95\%} (HD95) -- khoảng cách biên đối xứng, lấy phân vị $95$ để loại $5\%$ điểm ngoại lai, với $\partial M, \partial G$ là tập điểm biên và $d(x, S)=\min_{y\in S}\lVert x-y\rVert$:
+\begin{equation}
+    \text{HD}_{95} = \max\!\Big\{ \mathrm{P}_{95}\big\{ d(x,\partial G) : x\in\partial M \big\},\ \ \mathrm{P}_{95}\big\{ d(y,\partial M) : y\in\partial G \big\} \Big\},
+\end{equation}
+trong đó $\mathrm{P}_{95}$ là phân vị thứ $95$ của tập khoảng cách.
+
+\emph{Deletion/Insertion AUC}~\cite{petsiuk2018rise} -- xếp các pixel theo giá trị CAM giảm dần rồi lần lượt xóa (thay bằng giá trị nền) hoặc chèn lại dần theo $K$ bước; tại mỗi bước tính IoU giữa dự đoán và vùng tham chiếu, thu được đường cong $s_k$ và lấy diện tích dưới đường cong:
+\begin{equation}
+    \text{AUC} = \frac{1}{K}\sum_{k=0}^{K} s_k .
+\end{equation}
+Deletion AUC thấp và Insertion AUC cao đồng nghĩa CAM phản ánh trung thực các pixel chi phối quyết định của mô hình.

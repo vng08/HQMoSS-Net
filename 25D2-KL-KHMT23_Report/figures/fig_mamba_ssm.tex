@@ -1,0 +1,58 @@
+% Hình: Cơ chế Selective Scan / SSM kiểu Mamba (Mục 3.6)
+% Gói: TikZ thuần (positioning + fit)
+\documentclass[border=6pt]{standalone}
+\usepackage[utf8]{vietnam}
+\usepackage{amsmath,amssymb}
+\usepackage{xcolor}
+\usepackage{tikz}
+\usetikzlibrary{positioning,fit,arrows.meta,calc,backgrounds}
+\definecolor{lssorange}{HTML}{CF8A2A}
+\definecolor{lssfill}{HTML}{FBE7C6}
+\definecolor{cvblue}{HTML}{35618E}
+\definecolor{cvbluefill}{HTML}{DCE7F2}
+\definecolor{slate}{HTML}{5B6470}
+\definecolor{slatefill}{HTML}{EDEFF2}
+\definecolor{inkdark}{HTML}{23272E}
+\tikzset{
+  >={Stealth[length=2.4mm]},
+  every node/.style={font=\sffamily\small, text=inkdark},
+  blk/.style={draw=lssorange, fill=lssfill, rounded corners=2pt, thick, align=center, minimum height=8mm, minimum width=13mm},
+  state/.style={draw=cvblue, fill=cvbluefill, rounded corners=2pt, thick, align=center, minimum height=8mm, minimum width=16mm},
+  op/.style={draw=slate, fill=slatefill, circle, thick, inner sep=1pt, minimum size=6mm},
+  io/.style={draw=slate, rounded corners=2pt, thick, align=center, minimum height=8mm, minimum width=12mm},
+  flow/.style={-{Stealth[length=2.4mm]}, line width=0.9pt, draw=inkdark},
+  sel/.style={-{Stealth[length=2mm]}, line width=0.8pt, draw=lssorange, dashed},
+  lbl/.style={font=\sffamily\scriptsize, text=slate},
+}
+\begin{document}
+\begin{tikzpicture}
+  \node[io] (xt) {$x_t$};
+  \node[blk, right=12mm of xt] (bt) {$b_t\odot$};
+  \node[op, right=12mm of bt] (plus) {$+$};
+  \node[state, right=12mm of plus] (h) {$h_t$};
+  \node[blk, right=12mm of h] (ct) {$\odot\, c_t$};
+  \node[io, right=12mm of ct] (yt) {$y_t$};
+
+  \draw[flow] (xt) -- (bt);
+  \draw[flow] (bt) -- (plus);
+  \draw[flow] (plus) -- (h);
+  \draw[flow] (h) -- (ct);
+  \draw[flow] (ct) -- (yt);
+
+% vòng hồi quy: h_{t-1} nhân a rồi cộng vào
+  \node[blk, below=9mm of plus, minimum width=20mm] (a) {$a \odot h_{t-1}$};
+  \draw[flow] (h.south) |- (a.east);
+  \draw[flow] (a.north) -- (plus.south);
+  \node[lbl, below=1mm of a] {$a=e^{-\mathrm{softplus}(\log a)}\in(0,1)$};
+
+  % tính chọn lọc: b_t, c_t, (Delta) phụ thuộc đầu vào x_t
+  \node[blk, above=9mm of h, minimum width=44mm, draw=cvblue, fill=cvbluefill] (sel)
+     {Cổng phụ thuộc đầu vào: $b_t=\sigma(W_b x_t)$, $c_t=\sigma(W_c x_t)$, $\Delta_t$};
+  \draw[sel] (xt.north) |- (sel.west);
+  \draw[sel] (sel.south) -- (bt.north);
+  \draw[sel] (sel.south) -- (ct.north);
+
+  \node[lbl, below=6mm of a, text width=11cm, align=center]
+     {Hồi quy: $h_t = a\odot h_{t-1} + b_t\odot x_t$,\quad $y_t = h_t\odot c_t$ \; --- độ phức tạp tuyến tính theo chiều dài chuỗi.};
+\end{tikzpicture}
+\end{document}

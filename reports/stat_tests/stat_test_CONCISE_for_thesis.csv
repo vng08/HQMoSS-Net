@@ -1,0 +1,24 @@
+﻿dataset,group,baseline,IoU_HQMoSS,IoU_baseline,Delta (diem %),95%_CI,CI loai tru 0,Cohen's d,p (1-sided)
+GLAS,architecture,"QUNet (12,1)",0.704,0.617,8.68,"[0.062, 0.112]",True,2.62,0.0021
+GLAS,architecture,U-Net,0.704,0.585,11.87,"[0.067, 0.171]",True,1.77,0.0083
+GLAS,architecture,R2U-Net,0.704,0.644,5.93,"[0.020, 0.114]",True,0.98,0.0471
+GLAS,architecture,Attention U-Net,0.704,0.669,3.49,"[-0.012, 0.079]",False,0.57,0.1348
+GLAS,architecture,V-Net (2D),0.704,0.619,8.51,"[-0.030, 0.201]",False,0.57,0.1375
+GLAS,architecture,UNet++,0.704,0.657,4.72,"[-0.017, 0.156]",False,0.38,0.2195
+PH2,ablation,UNet + LSS,0.85,0.794,5.62,"[0.044, 0.068]",True,3.68,0.0006
+PH2,ablation,"QMoE (5,5,5)",0.85,0.813,3.7,"[0.019, 0.049]",True,1.84,0.0074
+PH2,ablation,"QMoE (4,4,4)",0.85,0.809,4.08,"[0.024, 0.058]",True,1.83,0.0075
+PH2,ablation,"QMoE (1,1,1)",0.85,0.81,3.94,"[0.020, 0.058]",True,1.62,0.0113
+PH2,ablation,"QMoE (2,2,2)",0.85,0.811,3.92,"[0.017, 0.055]",True,1.56,0.0125
+PH2,ablation,QuMoE + LSS,0.85,0.826,2.4,"[0.008, 0.035]",True,1.39,0.0178
+PH2,ablation,"QMoE (3,3,3)",0.85,0.808,4.2,"[0.019, 0.080]",True,1.01,0.0434
+PH2,ablation,UNet + RDMS,0.85,0.827,2.29,"[0.004, 0.044]",True,0.92,0.0547
+PH2,ablation,CMoE (5 experts),0.85,0.759,9.02,"[0.022, 0.205]",True,0.73,0.0899
+PH2,ablation,QuMoE + RDMS,0.85,0.83,1.93,"[-0.006, 0.042]",False,0.63,0.1166
+PH2,ablation,UNet + LSS + RDMS,0.85,0.834,1.58,"[-0.011, 0.039]",False,0.52,0.1534
+PH2,architecture,V-Net (2D),0.85,0.788,6.19,"[0.050, 0.077]",True,3.61,0.0006
+PH2,architecture,R2U-Net,0.85,0.806,4.39,"[0.032, 0.059]",True,2.64,0.0021
+PH2,architecture,"QUNet (12,1)",0.85,0.794,5.55,"[0.039, 0.073]",True,2.46,0.0027
+PH2,architecture,UNet++,0.85,0.793,5.69,"[0.025, 0.085]",True,1.5,0.0141
+PH2,architecture,Attention U-Net,0.85,0.792,5.75,"[0.030, 0.095]",True,1.41,0.0174
+PH2,architecture,U-Net,0.85,0.779,7.1,"[0.032, 0.139]",True,0.95,0.0509

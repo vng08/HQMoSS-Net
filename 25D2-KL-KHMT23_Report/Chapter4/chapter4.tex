@@ -1,0 +1,338 @@
+\chapter{Phương pháp đề xuất}
+\label{Chapter4}
+
+\textit{Chương này trình bày chi tiết kiến trúc đề xuất HQMoSS-Net: nguyên tắc thiết kế giữ nguyên bộ khung U-Net và chỉ tăng cường vùng nút thắt cổ chai, cấu tạo của ba khối cốt lõi (hỗn hợp nhiều nhánh xử lý lượng tử QuantumMoE, khối quét chọn lọc nhẹ LSS và khối tích chập đa tỷ lệ RDMS), cùng diễn giải toán học, phân tích độ phức tạp tính toán, chiến lược so sánh thực nghiệm và chiến lược diễn giải mô hình bằng Seg-Grad-CAM.}
+
+\section{Tổng quan kiến trúc và nguyên tắc thiết kế}
+Dựa trên những khoảng trống nghiên cứu đã phân tích ở Chương~\ref{Chapter2}, khóa luận đề xuất \textbf{HQMoSS-Net} (\textbf{H}ybrid \textbf{Q}uantum \textbf{M}ixture-\textbf{o}f-experts với các nhánh xử lý đa \textbf{S}cale và khối \textbf{S}elective-scan) -- một mạng nơ-ron lai lượng tử -- cổ điển trên nền U-Net cho bài toán phân đoạn ảnh y sinh. Tên gọi phản ánh trực tiếp ba hạt nhân của mô hình: khối hỗn hợp nhiều nhánh xử lý lượng tử đa tỷ lệ (QuantumMoE), khối quét chọn lọc nhẹ lấy cảm hứng từ Mamba (Lightweight Selective Scan -- LSS), và khối tích chập đa tỷ lệ (Residual Dilated Multi-Scale -- RDMS) ở bộ khung cổ điển.
+
+Nguyên tắc thiết kế cốt lõi là \emph{giữ nguyên bộ khung (backbone) vững chắc dạng U-Net} và chỉ nhúng các khối tính toán chuyên biệt vào đúng vị trí nút thắt cổ chai (bottleneck) -- nơi độ phân giải không gian thấp nhất nhưng ngữ nghĩa cô đọng nhất -- nhằm tối đa hóa năng lực biểu diễn mà vẫn kiểm soát được chi phí mô phỏng lượng tử. Cụ thể, tại bottleneck, đặc trưng cổ điển lần lượt đi qua: (i) khối \textbf{QuantumMoE} gồm ba nhánh xử lý lượng tử đa tỷ lệ có mạng định tuyến và kết nối phần dư; (ii) khối \textbf{LSS} tổng hợp phụ thuộc không gian tầm xa theo cơ chế quét chọn lọc. Song song, ở nhánh mã hóa và giải mã, các khối tích chập thông thường được thay bằng khối \textbf{RDMS} để mở rộng trường nhìn đa tỷ lệ với chi phí tham số thấp. Hình~\ref{fig:overview} minh họa toàn cảnh kiến trúc.
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=\textwidth]{fig_hqmoss_overview.pdf}
+    \caption{Tổng quan kiến trúc HQMoSS-Net: bộ khung U-Net với khối RDMS ở encoder/decoder, và khối QuantumMoE cùng LSS được nhúng tại vùng nút thắt cổ chai.}
+    \label{fig:overview}
+\end{figure}
+
+Toàn bộ các thành phần lượng tử được hiện thực bằng thư viện PennyLane trên thiết bị giả lập \texttt{default.qubit} với phương pháp vi phân \texttt{backprop}, cho phép huấn luyện đầu-cuối bằng lan truyền ngược cùng phần cổ điển. Một đặc điểm cần nhấn mạnh ngay từ đầu là: HQMoSS-Net không phải một kiến trúc đơn lẻ mà là một \emph{họ mô hình} sinh ra từ ba công tắc bật/tắt (RDMS, QuMoE, LSS); phiên bản đầy đủ bật cả ba, và bảy cấu hình thực nghiệm còn lại phục vụ phân tích bóc tách (mục~\ref{sec:variants}).
+
+\section{Phân tích và lựa chọn thành phần}
+\subsection{Lựa chọn bộ khung}
+U-Net được chọn làm bộ khung (backbone, thay vì SegNet hay DeepLab) vì ba lý do gắn với đặc thù bài toán (mục~\ref{subsec:challenges}). Thứ nhất, kết nối tắt của U-Net bảo toàn thông tin định vị bị mất khi nén ở encoder, giúp tái tạo biên sắc nét -- tối quan trọng cho ranh giới tổn thương/tuyến. Thứ hai, U-Net vốn được thiết kế để hoạt động tốt trên \emph{dữ liệu nhỏ}, đúng bối cảnh của PH2 và GlaS. Thứ ba, và quan trọng nhất về mặt kiến trúc: cấu trúc đối xứng tạo ra một vùng bottleneck \emph{cô đọng và tách biệt}, nơi độ phân giải không gian thấp nhất ($6\times 8$) khiến chi phí mô phỏng lượng tử trở nên khả thi. Nói cách khác, chính hình học của U-Net cung cấp một vị trí lý tưởng để nhúng khối lượng tử mà không phá vỡ khả năng phục hồi không gian của nhánh giải mã -- đây là lý do nền tảng cho nguyên tắc ``chỉ can thiệp tại bottleneck'' xuyên suốt chương này.
+
+\subsection{Lựa chọn khối tích chập đa tỷ lệ RDMS}
+Thay vì hai lớp tích chập $3\times 3$ thông thường ở mỗi tầng, khóa luận sử dụng khối RDMS nhằm mở rộng trường nhìn đa tỷ lệ (mục~\ref{subsec:dilated}) ngay trong bộ khung cổ điển. Việc này giúp encoder nắm bắt ngữ cảnh ở nhiều bán kính khác nhau trước khi nén xuống bottleneck, đồng thời chi phí tham số thấp nhờ dùng tích chập tách kênh theo chiều sâu. Như phân tích bóc tách ở Chương~\ref{Chapter5} sẽ cho thấy, RDMS là thành phần cổ điển đóng góp lớn nhất vào chất lượng phân đoạn.
+
+\subsection{Lựa chọn cơ chế mã hóa dữ liệu}
+Khóa luận sử dụng \textbf{Amplitude Embedding} thay cho Angle hay Basis Encoding. Khối lượng tử tại bottleneck phải xử lý các mảnh ảnh (patch) có số chiều lớn; Amplitude Embedding cho phép nén $2^{n}$ giá trị đặc trưng vào chỉ $n$ qubit. Trong thiết kế, số qubit của mỗi nhánh xử lý được chọn sao cho $2^{n}$ đúng bằng số chiều của patch, tận dụng trọn vẹn dung lượng biểu diễn của không gian Hilbert (mục~\ref{subsec:experts}). Cần lưu ý một đánh đổi đi kèm: do yêu cầu chuẩn hóa $L_2$ về vector đơn vị trước khi mã hóa, Amplitude Embedding chỉ giữ lại \emph{hướng} (hình dạng tương đối) của patch, còn độ lớn tuyệt đối (năng lượng/độ tương phản gốc) của patch bị loại bỏ hoàn toàn trước khi vào mạch lượng tử. Đây là đánh đổi chấp nhận được trong thiết kế của khóa luận vì hai lý do: các lớp \texttt{LayerNormalization} bao quanh mạch (mục~\ref{subsec:experts}) cũng đã chuẩn hóa thang giá trị ở nhiều điểm khác trong mạng, nên thông tin độ lớn tuyệt đối vốn không được bảo toàn xuyên suốt kiến trúc; đồng thời kết nối phần dư ở cấp khối QuantumMoE vẫn cho phép thông tin gốc (bao gồm độ lớn) đi thẳng qua nhánh tắt tới đầu ra, nên phần đóng góp của nhánh lượng tử chỉ cần bổ sung thông tin về \emph{hình dạng} mà không nhất thiết phải mang theo độ lớn tuyệt đối.
+
+\subsection{Lựa chọn phương pháp đo lường}
+Các nhánh xử lý lượng tử sử dụng đo lường phân bố xác suất \texttt{qml.probs}, trả về vector độ dài $2^{n}$. Vector giàu thông tin này được định hình lại (reshape) trực tiếp thành khối đặc trưng không gian, phù hợp với yêu cầu tái tạo bản đồ đặc trưng của bài toán phân đoạn -- khác với đo giá trị kỳ vọng vô hướng vốn chỉ trả về một con số và sẽ làm mất thông tin không gian cần thiết cho việc dựng lại patch.
+
+\subsection{Lý do bổ sung khối LSS}
+Các nhánh xử lý lượng tử xử lý ảnh theo từng patch cục bộ, do đó còn hạn chế trong việc nắm bắt phụ thuộc giữa các vùng không gian ở xa nhau. Khối LSS được thêm ngay sau QuantumMoE nhằm bổ khuyết: dựa trên cơ chế quét chọn lọc (mục~\ref{sec:ssm}), nó tổng hợp thông tin toàn cục dọc theo chuỗi các vị trí không gian với chi phí tuyến tính, rẻ hơn nhiều so với self-attention.
+
+\section{Bộ khung cổ điển và khối RDMS}
+Bộ khung cổ điển của HQMoSS-Net gồm hai loại khối, với danh sách số bộ lọc \texttt{num\_filters} $= [8, 16, 32, 16, 8]$.
+\begin{itemize}
+    \item \textbf{Khối mã hóa (\texttt{conv\_block}):} một khối trích xuất đặc trưng (RDMS ở phiên bản đầy đủ, hoặc hai lớp \texttt{Conv2D} $3\times 3$ + ReLU ở phiên bản cổ điển), theo sau bởi \texttt{MaxPooling2D} $2\times 2$. Đầu ra trước pooling được giữ lại làm kết nối tắt, còn đầu ra sau pooling truyền xuống tầng tiếp theo.
+    \item \textbf{Khối giải mã (\texttt{convT\_block}):} một lớp \texttt{Conv2DTranspose} $3\times 3$ (stride $2$) nhân đôi độ phân giải, ghép nối (concatenate) với kết nối tắt tương ứng, rồi tinh chỉnh bằng RDMS (hoặc hai lớp \texttt{Conv2D} ở phiên bản cổ điển).
+\end{itemize}
+
+Khối \textbf{RDMS} (Residual Dilated Multi-Scale) được định nghĩa như sau. Đầu vào $x$ trước hết đi qua một tích chập $3\times 3$ tạo nhánh tắt $s = \text{Conv}_{3\times 3}(x)$. Từ $s$, ba nhánh tích chập tách kênh theo chiều sâu với hệ số giãn nở khác nhau được tính song song rồi ghép kênh:
+\begin{equation}
+    b_{r} = \mathrm{ReLU}\big(\text{DWConv}_{3\times 3}^{(\text{dil}=r)}(s)\big),\quad r\in\{1,2,3\};
+    \qquad
+    u = \text{Conv}_{3\times 3}\big([\,b_1, b_2, b_3\,]\big).
+\end{equation}
+Cuối cùng, đầu ra là tổng phần dư của nhánh tắt và nhánh đa tỷ lệ, kích hoạt ReLU:
+\begin{equation}
+    \text{RDMS}(x) = \mathrm{ReLU}\big(s + u\big).
+\end{equation}
+Theo công thức trường nhìn ở mục~\ref{subsec:dilated}, ba nhánh $r=1,2,3$ có bộ lọc hiệu dụng $3\times 3$, $5\times 5$, $7\times 7$, nên RDMS ``nhìn'' cùng một vị trí ở ba bán kính ngữ cảnh và trộn lại -- một dạng kim tự tháp không gian thu nhỏ đặt tại mọi tầng của mạng. Kết nối phần dư giúp gradient truyền ổn định và cho phép khối học phần bổ sung (residual) thay vì toàn bộ ánh xạ. Cấu trúc chi tiết của khối RDMS được minh họa trong Hình~\ref{fig:rdms}.
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.92\textwidth]{fig_rdms_block.pdf}
+    \caption{Khối RDMS (Residual Dilated Multi-Scale): một tích chập $3\times 3$ tạo nhánh tắt $s$, ba nhánh tích chập tách kênh giãn nở (dilation $1/2/3$) chạy song song, ghép kênh rồi tinh chỉnh và cộng phần dư.}
+    \label{fig:rdms}
+\end{figure}
+
+Với ảnh đầu vào $192 \times 256 \times 3$, sau năm lần pooling, bản đồ đặc trưng tại bottleneck có kích thước $6 \times 8 \times 8$ (chiều cao $\times$ chiều rộng $\times$ số kênh). Đây chính là đầu vào cho khối QuantumMoE.
+
+\section{Khối QuantumMoE (Quantum Mixture of Experts)}
+QuantumMoE là hạt nhân lượng tử của mô hình, đặt tại bottleneck. Nó giải quyết bài toán trích xuất đặc trưng đa tỷ lệ bằng cách kết hợp ba nhánh xử lý lượng tử xử lý các mảnh ảnh có kích thước khác nhau, điều phối bởi một mạng định tuyến và bao bọc bởi một kết nối residual.
+
+\subsection{Nhánh xử lý lượng tử (QuantumExpert)}
+Mỗi nhánh biến đổi một bản đồ đặc trưng $H\times W\times C$ thành một bản đồ cùng kích thước, thông qua quy trình xử lý theo patch mô tả trong Thuật toán~\ref{alg:qexpert}. Với patch kích thước $p_h \times p_w$ trên $C$ kênh, số chiều mỗi patch là $p_h p_w C$ và số qubit được chọn $n$ thỏa $2^{n} = p_h p_w C$.
+
+\begin{algorithm}[h]
+\caption{Nhánh xử lý lượng tử \texttt{QuantumExpert}}
+\label{alg:qexpert}
+\begin{algorithmic}[1]
+\State \textbf{Đầu vào:} bản đồ đặc trưng $F \in \mathbb{R}^{B\times H\times W\times C}$; patch $(p_h, p_w)$; số qubit $n$; số lớp PQC $L$
+\State Đệm không gian $F$ nếu $H < p_h$ hoặc $W < p_w$ để đủ chứa patch
+\State Trích các patch trượt với \texttt{stride}$=1$, \texttt{padding=VALID}; trải phẳng mỗi patch thành vector độ dài $p_h p_w C$
+\State $P \gets \text{LayerNormalization}(P)$ \Comment{chuẩn hóa trước khi mã hóa lượng tử}
+\State Với mỗi patch: \texttt{AmplitudeEmbedding} (chuẩn hóa $L_2$) $\rightarrow$ \texttt{PQCExpert}$(n, L)$ $\rightarrow$ \texttt{qml.probs} ($2^n$ chiều)
+\State $P \gets \text{LayerNormalization}(P)$; giữ $p_h p_w C$ thành phần đầu \Comment{ở đây $2^n=p_hp_wC$ nên giữ trọn vector}
+\State Định hình lại về lưới patch không gian và tái tổ hợp bằng \textbf{overlap-add} (trung bình theo số lần chồng lấn)
+\State Cắt về kích thước $H\times W$ ban đầu, thu $F'$
+\State \Return $F'$
+\end{algorithmic}
+\end{algorithm}
+
+Hai lớp \texttt{LayerNormalization} bao quanh mạch lượng tử giúp ổn định phân bố giá trị trước khi mã hóa biên độ và sau khi lấy phân bố xác suất. Khác với một số thiết kế bổ sung hàm kích hoạt hay cổng điều biến ở đầu ra mỗi nhánh, hiện thực của khóa luận giữ cho mỗi nhánh \emph{thuần khiết}: đầu ra là kết quả tái tổ hợp trực tiếp từ phân bố xác suất lượng tử, và mọi phi tuyến/điều biến được nhường lại cho mạng định tuyến và kết nối phần dư ở cấp khối. Điều này làm cho vai trò của từng nhánh dễ diễn giải hơn và giảm số siêu tham số cần tinh chỉnh. Hình~\ref{fig:qexpert} minh họa toàn bộ luồng xử lý của một nhánh xử lý lượng tử.
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.95\textwidth]{fig_quantum_expert.pdf}
+    \caption{Luồng xử lý một nhánh xử lý lượng tử \texttt{QuantumExpert}: trích patch trượt, chuẩn hóa, mã hóa biên độ và chạy PQC (phần lượng tử khả vi), rồi chuẩn hóa và tái tổ hợp bằng overlap-add.}
+    \label{fig:qexpert}
+\end{figure}
+
+\subsection{Mạch lượng tử tham số hóa dùng chung (PQCExpert)}
+Cả ba nhánh xử lý sử dụng \emph{chung một cấu trúc ansatz} \texttt{PQCExpert}, chỉ khác nhau ở số qubit và số lớp. Ansatz gồm ba tầng (Thuật toán~\ref{alg:pqc}): tầng tạo chồng chất bằng Hadamard, $L$ lớp lặp gồm cổng quay tổng quát và vướng víu vòng, và một tầng quay cuối phụ thuộc chỉ số qubit.
+
+\begin{algorithm}[h]
+\caption{Ansatz \texttt{PQCExpert} dùng chung cho các nhánh xử lý}
+\label{alg:pqc}
+\begin{algorithmic}[1]
+\State \textbf{Tham số:} $\text{weight}_0 \in \mathbb{R}^{L\times n\times 3}$, $\text{weight}_1 \in \mathbb{R}^{n}$
+\For{$i = 0$ đến $n-1$} \State $\text{Hadamard}(i)$ \Comment{tạo chồng chất phân bố đều} \EndFor
+\For{$\ell = 0$ đến $L-1$}
+    \For{$i = 0$ đến $n-1$} \State $\text{Rot}(\text{weight}_0[\ell,i,0..2],\, \text{wire}=i)$ \EndFor
+    \For{$i = 0$ đến $n-2$} \State $\text{CNOT}(i, i{+}1)$ \Comment{chuỗi vướng víu tuyến tính} \EndFor
+    \State $\text{CNOT}(n{-}1, 0)$ \Comment{đóng vòng}
+\EndFor
+\For{$i = 0$ đến $n-1$}
+    \If{$i \bmod 3 = 0$} \State $\text{RX}(\text{weight}_1[i],\, \text{wire}=i)$
+    \ElsIf{$i \bmod 3 = 1$} \State $\text{RY}(\text{weight}_1[i],\, \text{wire}=i)$
+    \EndIf \Comment{$i \bmod 3 = 2$: không thêm cổng}
+\EndFor
+\end{algorithmic}
+\end{algorithm}
+
+Cổng $\text{Rot}(\phi,\theta,\omega)=R_Z(\omega)R_Y(\theta)R_Z(\phi)$ ba tham số cho phép mỗi qubit đạt phép quay đơn qubit tùy ý, đóng vai trò trọng số học được; chuỗi CNOT tuyến tính khép vòng tạo vướng víu lan tỏa toàn mạch theo cấu trúc vòng (ring), bảo đảm mọi qubit đều được liên kết. Việc dùng chung ansatz đảm bảo sự khác biệt về hành vi giữa các nhánh xử lý chỉ đến từ \emph{tỷ lệ không gian} (kích thước patch) và \emph{dung lượng} (số qubit, số lớp), thuận lợi cho việc phân tích vai trò của cơ chế đa tỷ lệ. Hình~\ref{fig:pqc} biểu diễn sơ đồ mạch của ansatz \texttt{PQCExpert} (minh họa cho Expert~1 với $n=5$ qubit).
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=\textwidth]{fig_pqc_main.pdf}
+    \caption{Mạch lượng tử tham số hóa \texttt{PQCExpert}: tầng Hadamard tạo chồng chất, khối lặp $L$ lần gồm cổng quay $\text{Rot}$ trên mỗi qubit và chuỗi CNOT khép vòng, cuối cùng là các cổng $R_x/R_y$ theo $i \bmod 3$ và phép đo phân bố xác suất.}
+    \label{fig:pqc}
+\end{figure}
+
+\subsection{Ba nhánh xử lý đa tỷ lệ}
+\label{subsec:experts}
+Ba nhánh xử lý được cấu hình để bao phủ các tỷ lệ không gian từ mịn tới thô, tất cả với $L = 5$ lớp PQC ở phiên bản mặc định (Bảng~\ref{tab:experts}).
+\begin{table}[h]
+\centering
+\caption{Cấu hình ba nhánh xử lý lượng tử trong QuantumMoE (bottleneck $6\times 8$)}
+\label{tab:experts}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{|l|c|c|c|c|c|}
+\hline
+\textbf{Nhánh xử lý} & \textbf{Patch} & \textbf{Số qubit $n$} & \textbf{Chiều patch $=2^n$} & \textbf{Số patch trượt} & \textbf{Tỷ lệ} \\ \hline
+Expert 1 & $2\times 2$ & 5 & $2{\cdot}2{\cdot}8 = 32$ & $5\times 7 = 35$ & Cục bộ mịn \\ \hline
+Expert 2 & $2\times 4$ & 6 & $2{\cdot}4{\cdot}8 = 64$ & $5\times 5 = 25$ & Trung gian \\ \hline
+Expert 3 & $8\times 8$ & 9 & $8{\cdot}8{\cdot}8 = 512$ & $1\times 1 = 1$ & Toàn cục \\ \hline
+\end{tabular}%
+}
+\end{table}
+\FloatBarrier
+
+Nhờ kích thước patch tăng dần, Expert 1 tập trung vào chi tiết cục bộ (nhiều patch nhỏ trượt dày đặc), Expert 2 nắm cấu trúc trung gian, còn Expert 3 (với patch bao trùm toàn bộ bản đồ $6\times 8$ sau khi đệm về $8\times 8$) nắm bắt ngữ cảnh toàn cục chỉ bằng \emph{một} lần đánh giá mạch lượng tử duy nhất mã hóa cả $512$ chiều đặc trưng.
+
+\subsection{Tái tổ hợp overlap-add}
+Vì các patch được trích với \texttt{stride}$=1$, một điểm ảnh nằm trong nhiều patch chồng lấn. Sau khi mỗi patch được xử lý lượng tử và định hình lại thành khối $p_h\times p_w\times C$, mỗi nhánh xử lý tái tổ hợp bản đồ đặc trưng bằng \emph{overlap-add}: cộng dồn đóng góp của mọi patch rồi chia cho số lần phủ. Gọi $Q(s)\in\mathbb{R}^{p_h\times p_w\times C}$ là patch đã xử lý tại vị trí góc $s$ và $\delta$ là độ dời trong patch, giá trị tái tổ hợp tại điểm ảnh $p$ là:
+\begin{equation}
+    F'(p) = \frac{\displaystyle\sum_{(s,\delta):\, s+\delta = p} Q(s)_{\delta}}{\displaystyle\sum_{(s,\delta):\, s+\delta = p} 1}
+         = \frac{1}{|\mathcal{N}(p)|}\sum_{(s,\delta):\, s+\delta = p} Q(s)_{\delta},
+\end{equation}
+với $|\mathcal{N}(p)|$ là số patch phủ lên $p$. Phép trung bình này đóng vai trò một bộ làm mượt, tạo ra bản đồ đặc trưng liền mạch thay vì rời rạc theo ô, đồng thời tổng hợp nhiều ``góc nhìn'' lượng tử về cùng một điểm ảnh (Hình~\ref{fig:overlapadd}).
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.85\textwidth]{fig_overlap_add.pdf}
+    \caption{Tái tổ hợp \emph{overlap-add} với \texttt{stride}$=1$: các patch chồng lấn được xử lý qua PQC rồi cộng dồn và chia cho số lần phủ, cho ra bản đồ đặc trưng liền mạch.}
+    \label{fig:overlapadd}
+\end{figure}
+
+\subsection{Mạng định tuyến và kết nối residual (Router)}
+Đầu ra ba nhánh xử lý được điều phối bởi mạng định tuyến. Router ghép nối đầu vào gốc với ba đầu ra này, đưa qua một lớp tích chập $1\times 1$ để sinh logit, rồi chuẩn hóa bằng Softmax theo chiều nhánh xử lý (theo từng điểm ảnh):
+\begin{equation}
+    w = \text{Softmax}\big(\text{Conv}_{1\times 1}([F, E_1, E_2, E_3])\big) \in \Delta^{2},
+    \qquad
+    M = \sum_{i=1}^{3} w_i \odot E_i,
+\end{equation}
+trong đó $\Delta^{2}$ là đơn hình xác suất $3$ chiều ($w_i\ge 0,\ \sum_i w_i=1$ tại mỗi điểm ảnh) và $\odot$ là nhân theo từng phần tử có broadcast trên kênh. Việc đưa cả đầu vào gốc $F$ vào router giúp mạng định tuyến có đủ ngữ cảnh để phân bổ hợp lý theo từng vị trí không gian, hạn chế hiện tượng sụp đổ nhánh xử lý (mục~\ref{sec:ssm} về expert collapse). Cuối cùng, khối QuantumMoE bọc kết quả trộn bằng một kết nối residual:
+\begin{equation}
+    \text{QuantumMoE}(F) = F + M .
+\end{equation}
+Kết nối residual bảo toàn tín hiệu gốc, giúp gradient truyền ổn định và tránh phá vỡ biểu diễn cổ điển khi các mạch lượng tử còn chưa được huấn luyện tốt ở giai đoạn đầu -- một điểm then chốt để mô hình lai hội tụ. Toàn cảnh khối QuantumMoE (ba nhánh xử lý, mạng định tuyến nhận \emph{cả} đầu vào gốc lẫn ba đầu ra này, và kết nối residual) được minh họa trong Hình~\ref{fig:qmoe}.
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=\textwidth]{fig_quantum_moe.pdf}
+    \caption{Khối QuantumMoE: ba nhánh xử lý lượng tử đa tỷ lệ, mạng định tuyến $\mathrm{Softmax}(\mathrm{Conv}_{1\times1})$ trên bản ghép $[F, E_1, E_2, E_3]$ sinh trọng số theo từng điểm ảnh, và kết nối phần dư $\mathrm{QuantumMoE}(F)=F+\sum_i w_i\odot E_i$.}
+    \label{fig:qmoe}
+\end{figure}
+\FloatBarrier
+
+\section{Khối LSS tại nút thắt cổ chai}
+Sau QuantumMoE, bản đồ đặc trưng đi qua khối \texttt{LSS} (Lightweight Selective Scan) để tổng hợp phụ thuộc không gian tầm xa. Với đầu vào $x \in \mathbb{R}^{B\times H\times W\times C}$ (ở đây $C=8$), khối thực hiện tuần tự các bước sau:
+\begin{enumerate}
+    \item Chuẩn hóa \texttt{LayerNormalization}, sau đó chiếu $1\times 1$ lên $2h$ kênh (với $h = \max(C, 4)=8$) rồi tách thành hai nhánh: nhánh đặc trưng và nhánh cổng, mỗi nhánh $h$ kênh.
+    \item Nhánh đặc trưng qua \texttt{Conv2D} $5\times 5$ để trộn cục bộ, rồi kích hoạt \texttt{swish} \cite{ramachandran2017swish}.
+    \item Trải phẳng lưới $H\times W$ thành chuỗi token, đưa qua khối quét chọn lọc \texttt{SelectiveScan} (công thức hồi quy $h_t = a\odot h_{t-1} + b_t\odot x_t$, $y_t = h_t\odot c_t$ ở mục~\ref{sec:ssm}), rồi định hình lại về không gian $2$D.
+    \item Nhánh cổng qua sigmoid và nhân theo từng phần tử với nhánh đặc trưng (cổng chọn lọc).
+    \item Chiếu $1\times 1$ về $C$ kênh với trọng số \emph{khởi tạo bằng không}, nên ban đầu khối gần như là ánh xạ đồng nhất; cuối cùng cộng residual với đầu vào và kích hoạt ReLU.
+\end{enumerate}
+Việc khởi tạo lớp chiếu ra bằng không khiến LSS khởi đầu như một khối ``trong suốt'', không phá vỡ biểu diễn đã học, và dần đóng góp thông tin toàn cục khi được huấn luyện. Chi phí của phép quét là tuyến tính theo số token $H\times W$ (ở đây chỉ $48$ token), rẻ hơn nhiều so với chi phí bậc hai $\mathcal{O}((HW)^2)$ của self-attention. Sơ đồ khối LSS được trình bày trong Hình~\ref{fig:lss}.
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=\textwidth]{fig_lss_block.pdf}
+    \caption{Khối LSS (Lightweight Selective Scan): chuẩn hóa và chiếu $1\times1$, tách nhánh đặc trưng/cổng, quét chọn lọc tuyến tính $h_t=a\odot h_{t-1}+b_t\odot x_t$, cổng sigmoid, và chiếu ra khởi tạo bằng không kèm kết nối phần dư.}
+    \label{fig:lss}
+\end{figure}
+
+\section{Kết hợp toàn bộ kiến trúc HQMoSS-Net}
+Ghép các thành phần trên vào bộ khung U-Net, luồng xử lý đầu-cuối của HQMoSS-Net được tóm tắt trong Thuật toán~\ref{alg:hqmoss}.
+\begin{algorithm}[h]
+\caption{Luồng suy luận của HQMoSS-Net}
+\label{alg:hqmoss}
+\begin{algorithmic}[1]
+\State \textbf{Đầu vào:} ảnh $X \in \mathbb{R}^{192\times 256\times 3}$
+\State $t \gets X$; danh sách kết nối tắt $S \gets [\,]$
+\For{mỗi $f$ trong $[8,16,32,16,8]$}
+    \State $(c, t) \gets \texttt{conv\_block}(t, f)$ với RDMS; thêm $c$ vào $S$ \Comment{mã hóa}
+\EndFor
+\State $t \gets \texttt{QuantumMoE}(t)$ \Comment{ba nhánh xử lý + router + residual}
+\State $t \gets \texttt{LSS}(t)$; $t\gets\mathrm{ReLU}(t)$ \Comment{quét chọn lọc toàn cục}
+\For{mỗi $f$ trong $[8,16,32,16,8]$ đảo ngược}
+    \State $t \gets \texttt{convT\_block}(t, f, \text{pop}(S))$ với RDMS \Comment{giải mã}
+\EndFor
+\State $\hat{Y} \gets \text{Conv2D}_{1\times 1}(t)$ với kích hoạt sigmoid
+\State \Return $\hat{Y}$
+\end{algorithmic}
+\end{algorithm}
+
+\section{Không gian thiết kế: tám cấu hình thực nghiệm}
+\label{sec:variants}
+HQMoSS-Net được hiện thực như một khung thống nhất điều khiển bởi ba công tắc nhị phân: \texttt{use\_rdms}, \texttt{use\_qmoe}, \texttt{use\_lss}. Bật/tắt độc lập ba công tắc sinh ra $2^3 = 8$ cấu hình thực nghiệm (Bảng~\ref{tab:variants}), trong đó cấu hình đầy đủ bật cả ba. Thiết kế này không chỉ gọn gàng về kỹ thuật mà còn tạo tiền đề cho một nghiên cứu bóc tách chặt chẽ: mọi cấu hình thực nghiệm chia sẻ cùng bộ khung, cùng quy trình huấn luyện, nên chênh lệch hiệu năng phản ánh trực tiếp đóng góp của từng thành phần được bật (Chương~\ref{Chapter5}).
+
+\begin{table}[H]
+\centering
+\caption{Tám cấu hình thực nghiệm của họ mô hình sinh từ ba công tắc RDMS/QuMoE/LSS}
+\label{tab:variants}
+\begin{tabular}{|l|c|c|c|}
+\hline
+\textbf{Cấu hình} & \textbf{RDMS} & \textbf{QuMoE} & \textbf{LSS} \\ \hline
+UNet (cổ điển)      & -- & -- & -- \\ \hline
+UNet + LSS          & -- & -- & \checkmark \\ \hline
+UNet + RDMS         & \checkmark & -- & -- \\ \hline
+UNet + LSS + RDMS   & \checkmark & -- & \checkmark \\ \hline
+QuMoE               & -- & \checkmark & -- \\ \hline
+QuMoE + LSS         & -- & \checkmark & \checkmark \\ \hline
+QuMoE + RDMS        & \checkmark & \checkmark & -- \\ \hline
+HQMoSS-Net (đầy đủ) & \checkmark & \checkmark & \checkmark \\ \hline
+\end{tabular}
+\end{table}
+\FloatBarrier
+
+\section{Phân tích toán học của kiến trúc}
+Phần này tổng hợp một góc nhìn toán học thống nhất về HQMoSS-Net, xem toàn mạng như một hàm hợp thành khả vi.
+
+\subsection{Mô hình như một ánh xạ hợp thành}
+Toàn bộ mô hình là một ánh xạ $f_\theta = g_{\text{dec}} \circ \Phi_{\text{LSS}} \circ \Phi_{\text{QMoE}} \circ g_{\text{enc}}$, trong đó $g_{\text{enc}}, g_{\text{dec}}$ là các phép biến đổi cổ điển (RDMS + pooling / upsampling) và $\Phi_{\text{QMoE}}, \Phi_{\text{LSS}}$ là hai toán tử bottleneck. Mỗi nhánh xử lý lượng tử định nghĩa một ánh xạ phi tuyến từ patch $z\in\mathbb{R}^{2^n}$ sang phân bố xác suất:
+\begin{equation}
+    E(z;\boldsymbol{\theta}) = \Big(\big|\langle b|\, U(\boldsymbol{\theta})\,|\psi(z)\rangle\big|^2\Big)_{b=0}^{2^n-1},
+\end{equation}
+với $|\psi(z)\rangle$ là trạng thái mã hóa biên độ của $z$ và $U(\boldsymbol{\theta})$ là unitary của PQC. Đây là một hàm \emph{bậc hai} theo các biên độ của $U(\boldsymbol{\theta})|\psi(z)\rangle$ và trơn theo $\boldsymbol{\theta}$, nên toàn bộ $f_\theta$ khả vi và huấn luyện được bằng hạ gradient.
+
+\subsection{Vì sao mã hóa biên độ giàu biểu diễn}
+Do $\dim \mathcal{H} = 2^n$, một nhánh xử lý $n=9$ qubit làm việc trong không gian $512$ chiều nhưng chỉ cần $9$ qubit. Phép đo \texttt{probs} sinh ra một vector $2^n$ chiều mà mỗi thành phần là một \emph{đa thức bậc cao} của các tham số cổng và các biên độ đầu vào -- tức nhánh xử lý lượng tử biểu diễn được những tương tác đặc trưng bậc cao mà một lớp tích chập tuyến tính-theo-kênh khó nắm bắt. Cấu trúc vướng víu vòng (ring của CNOT) bảo đảm mọi qubit -- tức mọi nhóm đặc trưng trong patch -- đều tương tác với nhau, làm cho phân bố đầu ra không tách được thành tích các phân bố độc lập.
+
+\subsection{Router như trung bình hóa lồi theo điểm ảnh}
+Với ràng buộc $w\in\Delta^2$, đầu ra trộn $M = \sum_i w_i E_i$ là một \emph{tổ hợp lồi} của ba đặc trưng từ ba nhánh xử lý tại mỗi điểm ảnh. Điều này bảo đảm đầu ra nằm trong bao lồi của các đặc trưng đó và cho phép mô hình \emph{nội suy} mượt giữa các tỷ lệ: những vùng đồng nhất có thể dồn trọng số cho nhánh toàn cục, còn vùng nhiều chi tiết dồn cho nhánh cục bộ. Kết nối residual $F + M$ biến khối thành một phép \emph{tinh chỉnh} (refinement) quanh đặc trưng gốc, tương tự cấu trúc của các khối residual cổ điển.
+
+\subsection{LSS như bộ lọc IIR có cổng}
+Phép quét $h_t = a\odot h_{t-1} + b_t\odot x_t$ chính là một bộ lọc đáp ứng xung vô hạn (IIR) bậc nhất theo từng kênh, với cực điểm $a\in(0,1)^C$. Nghiệm tường minh $h_t = \sum_{\tau\le t} a^{\,t-\tau}\, (b_\tau\odot x_\tau)$ cho thấy đóng góp của một vị trí $\tau$ suy giảm theo hàm mũ $a^{t-\tau}$ với khoảng cách -- một ``bộ nhớ'' tầm xa nhưng có kiểm soát. Ràng buộc $a=\exp(-\text{softplus}(\log a))\in(0,1)$ bảo đảm ổn định số học (không phân kỳ), còn các cổng phụ thuộc đầu vào $b_t=\sigma(W_b x_t)$, $c_t=\sigma(W_c x_t)$ mang lại tính \emph{chọn lọc} theo tinh thần của Mamba.
+
+\section{Phân tích độ phức tạp tính toán và hiệu quả tham số}
+Ngoài góc nhìn toán học, việc hiểu chi phí tính toán và bộ nhớ là thiết yếu để lý giải tính khả thi của mô hình trên môi trường giả lập.
+
+\subsection{Số lần đánh giá mạch và độ phức tạp mô phỏng}
+Vì patch được trích với \texttt{stride}$=1$, số lần đánh giá mạch lượng tử của mỗi nhánh xử lý trên một ảnh đúng bằng số patch trượt: Expert 1 cần $35$ lần, Expert 2 cần $25$ lần, Expert 3 chỉ cần $1$ lần (Bảng~\ref{tab:experts}) -- tổng cộng $61$ lần đánh giá mạch cho mỗi ảnh, được vector hóa theo chiều batch trong \texttt{qml.qnn.KerasLayer}. Trên bộ giả lập vector trạng thái, mỗi lần đánh giá mạch $n$ qubit, $L$ lớp có chi phí $\mathcal{O}(L\,n\,2^{n})$ (áp $\mathcal{O}(Ln)$ cổng, mỗi cổng tác động lên vector $2^n$ biên độ). Do đó chi phí một nhánh xử lý là $\mathcal{O}(P\cdot L\,n\,2^{n})$ với $P$ là số patch. Đáng chú ý, nhánh toàn cục (Expert 3) tuy có $2^9=512$ biên độ nhưng chỉ chạy $1$ patch, nên không phải là nút nghẽn; ngược lại các nhánh mịn chạy nhiều patch nhưng trên không gian Hilbert nhỏ. Chính sự phân bổ này giúp khối lượng tử khả thi ở tầng bottleneck độ phân giải thấp.
+
+\subsection{Hiệu quả tham số của thành phần lượng tử}
+Số tham số lượng tử rất khiêm tốn: mỗi nhánh xử lý có $L\!\cdot\!n\!\cdot\!3 + n$ tham số, cụ thể Expert 1/2/3 lần lượt là $80$, $96$, $144$ tham số, tổng cộng chỉ \textbf{$320$ tham số lượng tử}. So với tổng số $153{,}660$ tham số của toàn mô hình HQMoSS-Net (Bảng~\ref{tab:params}), phần lượng tử chiếm chưa tới $0.3\%$. Việc một lượng tham số nhỏ như vậy lại đi kèm khác biệt hiệu năng đáng kể (Chương~\ref{Chapter5}) là một tín hiệu cho thấy \emph{hiệu quả tham số} của biểu diễn lượng tử. Đồng thời, tổng $153{,}660$ tham số của HQMoSS-Net vẫn nhỏ hơn nhiều so với các baseline như UNet++ ($637{,}509$) hay R2U-Net ($1{,}873{,}581$), cho thấy mô hình đạt hiệu năng cao mà không dựa vào việc phình to số tham số.
+
+\begin{table}[h]
+\centering
+\caption{Số tham số của HQMoSS-Net và các mô hình so sánh}
+\label{tab:params}
+\begin{tabular}{|l|r|l|r|}
+\hline
+\textbf{Mô hình} & \textbf{Số tham số} & \textbf{Mô hình} & \textbf{Số tham số} \\ \hline
+UNet (cổ điển) & $88{,}209$ & Attention U-Net & $644{,}263$ \\ \hline
+\textbf{HQMoSS-Net} & $\mathbf{153{,}660}$ & V-Net (2D) & $1{,}110{,}933$ \\ \hline
+UNet++ & $637{,}509$ & R2U-Net & $1{,}873{,}581$ \\ \hline
+QuNet (QuFeX) & $84{,}149$ & -- & -- \\ \hline
+\end{tabular}
+\end{table}
+\FloatBarrier
+
+\subsection{Tích hợp vi phân tự động}
+Mấu chốt kỹ thuật cho phép huấn luyện đầu-cuối là các mạch PennyLane được bọc bởi \texttt{qml.qnn.KerasLayer}, biến mạch lượng tử thành một lớp Keras thông thường với đầu vào/đầu ra tensor. Nhờ giao diện \texttt{tf} và phương pháp \texttt{backprop}, gradient của hàm mất mát theo tham số lượng tử được tính cùng đồ thị tính toán với phần cổ điển, không cần cơ chế đặc biệt. Hai lớp \texttt{LayerNormalization} bao quanh mạch còn giữ vai trò kỹ thuật quan trọng: chuẩn hóa biên độ đầu vào (tránh mất thông tin do chuẩn hóa $L_2$ của \texttt{AmplitudeEmbedding}) và ổn định thang giá trị của phân bố xác suất đầu ra trước khi đưa trở lại phần cổ điển.
+
+\section{Hàm mất mát và cấu hình tối ưu}
+Toàn bộ mô hình được huấn luyện đầu-cuối bằng hàm mất mát \textbf{Binary Cross-Entropy} (mục~\ref{subsec:loss}) -- đây là hàm mất mát duy nhất được sử dụng, đúng như cấu hình mã nguồn. Bộ tối ưu là Adam \cite{kingma2015adam} với tốc độ học $0.001$; độ đo theo dõi trong quá trình huấn luyện là IoU (mục~\ref{subsec:metrics}). Nhờ cơ chế vi phân được của mạch lượng tử mô phỏng, gradient lan truyền xuyên suốt cả khối lượng tử lẫn cổ điển trong một vòng huấn luyện thống nhất.
+
+\section{Các mô hình cơ sở và chiến lược so sánh}
+Để kết quả thực nghiệm có ý nghĩa khoa học, khóa luận so sánh HQMoSS-Net với các nhóm mô hình cơ sở trong điều kiện kiểm soát nghiêm ngặt:
+\begin{itemize}
+    \item \textbf{U-Net} \cite{ronneberger2015unet}: mô hình cổ điển gốc, cùng cấu hình bộ lọc; vùng bottleneck chỉ gồm các lớp tích chập cổ điển. Đây cũng là cấu hình thực nghiệm ``tắt cả ba công tắc'' trong họ mô hình.
+    \item \textbf{UNet++} \cite{zhou2018unetplusplus}: biến thể cổ điển mạnh với các kết nối tắt lồng nhau, đại diện cho hướng cải tiến thuần cổ điển.
+    \item \textbf{Attention U-Net} \cite{oktay2018attention}: biến thể cổ điển tích hợp cổng chú ý (attention gate) vào các kết nối tắt, cho phép đối chiếu trực tiếp giữa cơ chế chú ý cổ điển và cơ chế trộn nhiều nhánh xử lý lượng tử của mô hình đề xuất.
+    \item \textbf{V-Net (2D)} \cite{milletari2016vnet} và \textbf{R2U-Net} \cite{alom2018r2unet}: hai biến thể cổ điển giàu tham số (lần lượt $\sim\!1.1$M và $\sim\!1.9$M), dùng để kiểm chứng rằng lợi thế của HQMoSS-Net không đơn thuần đến từ việc tăng số tham số.
+    \item \textbf{QuNet (QuFeX)} \cite{qufex2025}: mô hình lượng tử kiểu QCNN dùng khối trích xuất đặc trưng lượng tử QuFeX làm mốc tham chiếu lượng tử \emph{tuần tự} (không theo hướng Mixture-of-Experts), giúp đối chiếu trực tiếp hiệu quả của cách tổ chức QuantumMoE đề xuất so với một hướng tiếp cận lượng tử khác cùng quy mô tham số nhỏ.
+\end{itemize}
+Nguyên tắc \textbf{so sánh công bằng} được tuân thủ: tất cả mô hình dùng chung cách chia dữ liệu ($5$-fold cross-validation), cùng bộ tối ưu Adam, cùng tốc độ học, số epoch và hàm mất mát BCE. Nhờ đó, mọi khác biệt về hiệu năng đều bắt nguồn từ năng lực biểu diễn của các khối được nhúng, chứ không do chênh lệch về kỹ thuật huấn luyện. Ngoài ra, họ tám cấu hình thực nghiệm (mục~\ref{sec:variants}) đóng vai trò như một tập baseline nội bộ, cho phép cô lập đóng góp của từng thành phần một cách chính xác.
+
+\textbf{Kiểm định ý nghĩa thống kê.} Để một kết luận không chỉ dựa trên chênh lệch trung bình (vốn có thể là dao động ngẫu nhiên giữa các fold), mọi so sánh -- cả với baseline kiến trúc lẫn với các cấu hình bóc tách -- đều được kiểm định trên $K=5$ giá trị Soft IoU pooled ghép cặp theo fold, với giả thuyết \emph{a priori} một phía ``HQMoSS-Net $>$ baseline''. Bằng chứng chính là khoảng tin cậy bootstrap $95\%$ của mức chênh trung bình (có ý nghĩa khi khoảng loại trừ $0$), kèm cỡ hiệu ứng Cohen's d và kiểm định $t$ ghép cặp một phía; bằng chứng từ PH2 và GlaS được gộp bằng meta-analysis Stouffer's Z (công thức ở mục~\ref{subsec:stat_test}). Kết quả đầy đủ trình bày ở mục~\ref{sec:stat_test} (Chương~\ref{Chapter5}).
+
+\section{Chiến lược diễn giải mô hình bằng Seg-Grad-CAM}
+\label{sec:xai_strategy}
+Bên cạnh các độ đo định lượng, khóa luận áp dụng Seg-Grad-CAM (cơ sở lý thuyết ở mục~\ref{sec:xai}) như một bước kiểm chứng định tính cho HQMoSS-Net, nhằm quan sát xem mô hình có thực sự ``nhìn'' đúng vùng tổn thương/tuyến hay không -- đặc biệt có ý nghĩa với một kiến trúc lai chứa thành phần lượng tử vốn khó diễn giải (mục~\ref{subsec:xai_hybrid}). Trong họ các kỹ thuật CAM dựa trên gradient đã so sánh về mặt lý thuyết ở mục~\ref{subsec:xai_cam_compare}, khóa luận chọn Grad-CAM chuẩn (qua mở rộng Seg-Grad-CAM) làm phương pháp chính thức, chủ yếu vì chi phí thấp (một lượt truyền ngược/ảnh, phù hợp với chi phí mô phỏng vốn đã cao của khối lượng tử) và không bộc lộ các nhược điểm quan sát được ở những kỹ thuật khác khi thử trực tiếp trên mô hình; bằng chứng thực nghiệm cụ thể cho lựa chọn này được trình bày ở mục~\ref{subsec:xai_method} (Chương~\ref{Chapter5}).
+
+Vì HQMoSS-Net và các baseline so sánh (U-Net, UNet++, Attention U-Net, V-Net, R2U-Net) có số tầng decoder và quy ước đặt tên lớp khác nhau, khóa luận không chọn lớp trích xuất theo tên lớp (không ổn định giữa các kiến trúc và giữa các phiên chạy) mà theo \emph{vị trí cấu trúc tương đương}: lớp đầu ra thực sự (bao gồm cả phép cộng phần dư và kích hoạt nếu có) của decoder stage thứ tư trên năm -- tức lớp ngay trước phép \texttt{Conv2DTranspose} cuối cùng trong đồ thị tính toán. Với \texttt{num\_filters} $=[8,16,32,16,8]$ của bộ khung cổ điển (mục về RDMS ở trên), vị trí này đạt độ phân giải không gian đủ cao ($1/2$ kích thước ảnh gốc mỗi chiều) trong khi vẫn giữ tính trừu tượng ngữ nghĩa, và được áp dụng nhất quán cho mọi kiến trúc được so sánh để đảm bảo tiêu chí diễn giải công bằng. Toàn bộ phương pháp luận chi tiết còn lại (tiêu chí chọn kỹ thuật XAI cụ thể, ngưỡng nhị phân hóa, hậu xử lý theo từng bộ dữ liệu) cùng kết quả định lượng và định tính được trình bày ở mục~\ref{subsec:xai_method} (Chương~\ref{Chapter5}).
+
+\section{Tổng hợp lập luận thiết kế: vì sao mỗi lựa chọn dẫn tới kết quả}
+\label{sec:design_rationale}
+Một nguyên tắc xuyên suốt của khóa luận là mỗi quyết định thiết kế đều xuất phát từ một \emph{giả thuyết} về cơ chế, và giả thuyết đó được kiểm chứng bằng thực nghiệm bóc tách ở Chương~\ref{Chapter5}. Bảng~\ref{tab:rationale} tóm tắt mối liên hệ ``lựa chọn thiết kế $\rightarrow$ lý do kỳ vọng $\rightarrow$ kết quả quan sát'', qua đó làm rõ vì sao kiến trúc đạt được hiệu năng như đã báo cáo, và khép lại toàn bộ phương pháp đề xuất của chương này.
+
+\begin{table}[H]
+\centering
+\caption{Liên hệ giữa lựa chọn thiết kế, lý do kỳ vọng và kết quả thực nghiệm}
+\label{tab:rationale}
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{|p{3.2cm}|p{6.0cm}|p{5.6cm}|}
+\hline
+\textbf{Lựa chọn} & \textbf{Lý do kỳ vọng} & \textbf{Kết quả quan sát (Chương~\ref{Chapter5})} \\ \hline
+Bộ khung U-Net & Bảo toàn không gian nhờ skip connection, phù hợp dữ liệu nhỏ & Nền tảng vững; mọi cấu hình thực nghiệm đều cải thiện trên nền này \\ \hline
+Khối RDMS đa tỷ lệ & Mở rộng trường nhìn ở nhiều bán kính để bám biên phức tạp, ít tham số & Thành phần cổ điển đóng góp lớn nhất: $+6.18\%$ Soft IoU khi bật riêng \\ \hline
+QuantumMoE đa tỷ lệ & Ánh xạ đặc trưng lượng tử giàu biểu diễn, hiệu quả tham số & $+4.37\%$ khi bật riêng; cộng hưởng với RDMS đạt $+6.65\%$ \\ \hline
+Mã hóa biên độ ($2^n=$ chiều patch) & Nén $2^n$ đặc trưng vào $n$ qubit, dùng trọn không gian Hilbert & Chỉ $320$ tham số lượng tử nhưng tạo khác biệt hiệu năng rõ rệt \\ \hline
+Đo \texttt{qml.probs} & Giữ vector $2^n$ chiều để tái tạo khối đặc trưng không gian & Cho phép dựng lại bản đồ đặc trưng liền mạch cho phân đoạn \\ \hline
+Khối LSS & Tổng hợp ngữ cảnh toàn cục tuyến tính, bù cho xử lý cục bộ của từng nhánh & Đẩy cấu hình thực nghiệm đầy đủ vượt QuMoE+RDMS lên $+9.12\%$ \\ \hline
+Kết nối phần dư (RDMS, MoE, LSS) & Bảo toàn tín hiệu gốc, ổn định gradient giai đoạn đầu & Huấn luyện hội tụ ổn định; độ lệch chuẩn nhỏ qua các fold \\ \hline
+Router có đầu vào gốc & Cung cấp ngữ cảnh để tránh sụp đổ nhánh xử lý & Phân bổ ba nhánh xử lý tương đối cân bằng (phân tích định tuyến) \\ \hline
+\end{tabular}%
+}
+\end{table}
+\FloatBarrier
+
+Ba luận điểm bao trùm có thể rút ra. \emph{Thứ nhất, tính bổ trợ của đa tỷ lệ ở hai cấp độ}: RDMS trộn ngữ cảnh đa tỷ lệ \emph{cổ điển} ở mọi tầng, còn QuantumMoE trộn ngữ cảnh đa tỷ lệ \emph{lượng tử} tại bottleneck; hai cơ chế này tác động ở những nơi và theo những cách khác nhau nên đóng góp của chúng cộng dồn thay vì trùng lặp -- đúng như quan sát $+6.65\%$ của QuMoE+RDMS so với $+6.18\%$ (RDMS) và $+4.37\%$ (QuMoE) riêng lẻ. \emph{Thứ hai, vai trò bù khuyết của LSS}: vì mỗi nhánh xử lý lượng tử chỉ xử lý một mảnh ảnh cục bộ, thông tin giữa các vùng ở xa nhau chưa được liên kết; LSS quét toàn bộ lưới không gian với chi phí tuyến tính, khép lại lỗ hổng này và đẩy hiệu năng lên mức cao nhất. \emph{Thứ ba, hiệu quả tham số nhờ biểu diễn lượng tử}: chỉ $320$ tham số lượng tử ($<0.3\%$ tổng số) nhưng đi kèm khác biệt hiệu năng đáng kể, cho thấy giá trị có thể đến từ \emph{chất} của ánh xạ đặc trưng lượng tử (mục~\ref{subsec:qfeaturemap}) chứ không hẳn từ số lượng tham số -- một phần lý giải vì sao HQMoSS-Net đạt hiệu năng cao hơn cả những baseline lớn hơn nhiều lần. Ba luận điểm này chính là câu trả lời cho câu hỏi ``vì sao làm vậy lại đạt kết quả như vậy''.

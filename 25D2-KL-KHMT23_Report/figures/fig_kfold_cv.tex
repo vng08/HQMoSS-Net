@@ -1,0 +1,58 @@
+% Hình: Sơ đồ kiểm định chéo 5-fold (Mục 5.4)
+\documentclass[border=6pt]{standalone}
+\usepackage[utf8]{vietnam}
+\usepackage{amsmath,amssymb}
+\usepackage{xcolor}
+\usepackage{tikz}
+\usetikzlibrary{positioning,fit,arrows.meta,calc,backgrounds}
+
+\definecolor{cvblue}{HTML}{35618E}\definecolor{cvbluefill}{HTML}{DCE7F2}
+\definecolor{lssorange}{HTML}{CF8A2A}\definecolor{lssfill}{HTML}{FBE7C6}
+\definecolor{slate}{HTML}{5B6470}\definecolor{inkdark}{HTML}{23272E}
+
+\tikzset{
+  every node/.style={font=\sffamily\footnotesize, text=inkdark},
+  % Căn giữa chữ trong hộp
+  train/.style={draw=cvblue, fill=cvbluefill, minimum width=15mm, minimum height=7mm, inner sep=0pt, align=center},
+  val/.style={draw=lssorange, fill=lssfill, minimum width=15mm, minimum height=7mm, inner sep=0pt, align=center},
+  lbl/.style={font=\sffamily\scriptsize, text=slate},
+}
+
+\begin{document}
+\begin{tikzpicture}[x=16mm,y=8mm] % Nới nhẹ lưới cho không gian thoáng hơn
+  % ==========================================
+  % VẼ MA TRẬN 5-FOLD
+  % ==========================================
+  \foreach \row in {1,...,5}{
+    \node[lbl, anchor=east] at (-0.2, -\row+0.5) {Fold \row};
+    \foreach \col in {1,...,5}{
+      \pgfmathparse{int(\col==\row)}
+      \ifnum\pgfmathresult=1
+        \node[val] at (\col-0.5, -\row+0.5) {Val};
+      \else
+        \node[train] at (\col-0.5, -\row+0.5) {Train};
+      \fi
+    }
+  }
+  
+  % ==========================================
+  % CHÚ THÍCH (LEGEND) 
+  % Dùng relative positioning để không bị xếp đè
+  % ==========================================
+  % Neo tọa độ thẳng hàng với mép trái của cột lưới đầu tiên (x=0)
+  \coordinate (legend_anchor) at (0, -5.8);
+  
+  \node[train, anchor=west, minimum width=12mm] (leg_train) at (legend_anchor) {Train};
+  \node[lbl, right=2mm of leg_train] (txt_train) {Huấn luyện};
+  
+  \node[val, right=14mm of txt_train, minimum width=12mm] (leg_val) {Val};
+  \node[lbl, right=2mm of leg_val] (txt_val) {Kiểm định};
+  
+  % ==========================================
+  % GHI CHÚ TỔNG KẾT
+  % ==========================================
+  \node[lbl, below=4mm of leg_train, anchor=north west, text width=8.2cm, align=left, inner sep=0pt] 
+     {Mỗi mô hình được huấn luyện $5$ lần độc lập. Chỉ số cuối cùng được báo cáo là giá trị trung bình $\pm$ độ lệch chuẩn trên cả $5$ fold.};
+
+\end{tikzpicture}
+\end{document}

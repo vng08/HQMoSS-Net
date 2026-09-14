@@ -1,0 +1,52 @@
+% Tỷ trọng trung bình router cho 3 nhánh xử lý (Expert 1/2/3), so sánh PH2 và
+% GlaS 2015 (fold 1). Thanh lỗi = độ lệch chuẩn giữa các ảnh. Số liệu từ
+% router_balance_{ph2,glas}_fold1_per_image.csv (Chương 5).
+\documentclass[border=6pt]{standalone}
+\usepackage[utf8]{vietnam}
+\usepackage{amsmath}
+\usepackage{xcolor}
+\usepackage{pgfplots}
+\pgfplotsset{compat=1.17}
+\usepgfplotslibrary{groupplots}
+\definecolor{ph2blue}{HTML}{4C72B0}
+\definecolor{glasgreen}{HTML}{55A868}
+\definecolor{inkdark}{HTML}{23272E}
+\begin{document}
+\begin{tikzpicture}
+\begin{axis}[
+  width=11cm, height=6.6cm,
+  ybar, bar width=16pt,
+  ymajorgrids, grid style={gray!22},
+  ymin=0, ymax=0.56,
+  ylabel={Tỷ trọng trung bình},
+  tick label style={font=\sffamily\small},
+  label style={font=\sffamily\small},
+  symbolic x coords={Expert 1 (2x2),Expert 2 (2x4),Expert 3 (8x8)},
+  xtick=data,
+  x tick label style={font=\sffamily\scriptsize},
+  enlarge x limits=0.25,
+  legend style={at={(0.5,1.05)}, anchor=south, legend columns=2, font=\sffamily\scriptsize, draw=gray!40, fill=white},
+  legend cell align=left,
+  error bars/.cd,
+]
+\addplot[fill=ph2blue, draw=ph2blue!55!black,
+  error bars/y dir=both, error bars/y explicit, error bars/error bar style={line width=0.8pt}]
+  coordinates {
+    (Expert 1 (2x2),0.4144) +- (0,0.0665)
+    (Expert 2 (2x4),0.3798) +- (0,0.0468)
+    (Expert 3 (8x8),0.2058) +- (0,0.0391)
+  };
+\addlegendentry{PH2 (fold 1, $n{=}40$)}
+\addplot[fill=glasgreen, draw=glasgreen!55!black,
+  error bars/y dir=both, error bars/y explicit, error bars/error bar style={line width=0.8pt}]
+  coordinates {
+    (Expert 1 (2x2),0.3395) +- (0,0.0137)
+    (Expert 2 (2x4),0.2932) +- (0,0.0370)
+    (Expert 3 (8x8),0.3672) +- (0,0.0333)
+  };
+\addlegendentry{GlaS 2015 (fold 1, $n{=}33$)}
+\addplot[gray, dashed, sharp plot, forget plot, update limits=false]
+  coordinates {(Expert 1 (2x2),0.3333) (Expert 3 (8x8),0.3333)};
+\end{axis}
+\end{tikzpicture}
+\end{document}

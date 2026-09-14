@@ -1,0 +1,73 @@
+\chapter{Giới thiệu}
+\label{Chapter1}
+
+\textit{Chương này giới thiệu bài toán phân đoạn ảnh y sinh cùng những thách thức đặc thù của nó, nêu động lực kết hợp học máy lượng tử với kiến trúc U-Net, từ đó xác định mục tiêu, phạm vi và các đóng góp chính của khóa luận, đồng thời phác thảo cấu trúc của toàn bộ báo cáo.}
+
+\section{Giới thiệu bài toán}
+Trong lĩnh vực y tế hiện đại, phân đoạn ảnh y sinh (biomedical image segmentation) đóng một vai trò vô cùng quan trọng, hỗ trợ đắc lực cho các bác sĩ trong quá trình chẩn đoán lâm sàng, lập kế hoạch phẫu thuật và theo dõi tiến triển của bệnh. Khác với bài toán phân loại ảnh (image classification) chỉ gán một nhãn chung cho toàn bộ bức ảnh, bài toán phân đoạn ảnh yêu cầu dự đoán nhãn cho từng điểm ảnh (pixel) riêng biệt, từ đó khoanh vùng chính xác ranh giới của các cấu trúc giải phẫu hoặc vùng tổn thương. Đầu vào (input) của bài toán thường là một bức ảnh y tế kỹ thuật số, và đầu ra (output) là một mặt nạ phân đoạn nhị phân (binary mask) phân tách vùng quan tâm (foreground) với vùng nền (background).
+
+Về mặt hình thức, bài toán phân đoạn nhị phân là một ánh xạ có cấu trúc $f_\theta: \mathbb{R}^{H\times W\times C}\!\to\![0,1]^{H\times W}$ đi từ ảnh sang một trường xác suất cùng độ phân giải, trong đó thông tin không gian phải được bảo toàn xuyên suốt mô hình -- một đặc thù khiến bài toán khó hơn đáng kể so với phân loại, nơi đầu ra chỉ là một vector nhãn. Trong khuôn khổ khóa luận này, hai bài toán phân đoạn cụ thể được tập trung nghiên cứu bao gồm:
+\begin{itemize}
+    \item \textbf{Phân đoạn tổn thương da (Skin lesion segmentation):} Ứng dụng trên ảnh da liễu kỹ thuật số (dermoscopy) nhằm tách biệt vùng tổn thương với vùng da lành, hỗ trợ quá trình chẩn đoán sớm ung thư hắc tố (melanoma). Đại diện là tập dữ liệu PH2, nơi mỗi ảnh thường chỉ chứa một vùng tổn thương tập trung trên nền da tương đối đồng nhất.
+    \item \textbf{Phân đoạn tuyến trong mô học (Gland segmentation):} Ứng dụng trên ảnh mô học nhuộm Hematoxylin và Eosin (H\&E) của mô đại trực tràng nhằm khoanh vùng các cấu trúc tuyến (gland), phục vụ cho việc phân độ ung thư đại trực tràng. Đại diện là tập dữ liệu GlaS 2015, nơi mỗi ảnh chứa nhiều đối tượng tuyến có hình thái đa dạng, ranh giới cong phức tạp và nền mô đệm (stroma) nhiễu -- một điều kiện tương phản mạnh với PH2, thử thách khả năng nhận diện biên và tách nhiều đối tượng của mô hình.
+\end{itemize}
+
+\section{Động lực nghiên cứu}
+Kiến trúc U-Net \cite{ronneberger2015unet}, kể từ khi được đề xuất vào năm 2015, đã trở thành tiêu chuẩn vàng (gold standard) và là nền tảng cho hầu hết các mô hình phân đoạn ảnh y sinh hiện đại. Mặc dù đạt được những thành tựu to lớn, U-Net và các biến thể của nó vẫn là những mô hình học sâu thuần cổ điển (classical deep learning), đối mặt với các giới hạn về khả năng biểu diễn đặc trưng khi mạng trở nên quá sâu hoặc khi tập dữ liệu huấn luyện có kích thước nhỏ. Đặc biệt, tại vùng nút thắt cổ chai (bottleneck) -- nơi bản đồ đặc trưng đạt độ phân giải không gian thấp nhất nhưng cô đọng ngữ nghĩa toàn cục nhất -- một vài lớp tích chập thông thường khó nắm bắt hết các tương quan phi tuyến bậc cao giữa các kênh đặc trưng.
+
+Song song với sự phát triển của học sâu, Học máy Lượng tử (Quantum Machine Learning - QML) nổi lên như một hướng nghiên cứu đầy triển vọng, tận dụng các tính chất cơ học lượng tử như sự chồng chất (superposition) và vướng víu lượng tử (entanglement) để mở rộng không gian biểu diễn đặc trưng \cite{biamonte2017qml}. Một mạch lượng tử $n$ qubit làm việc trong không gian Hilbert số chiều $2^{n}$, cung cấp một không gian đặc trưng giàu có mà mô hình cổ điển khó mô phỏng hiệu quả. Tuy nhiên, phần lớn các công trình nghiên cứu QML trong xử lý ảnh y tế hiện nay chỉ mới tập trung vào bài toán phân loại (classification) \cite{shahjalal2025hqcnn}, trong khi lĩnh vực áp dụng QML cho bài toán phân đoạn ảnh vẫn còn rất sơ khai do yêu cầu khôi phục cấu trúc không gian ở đầu ra phức tạp hơn nhiều. Đặc biệt, hiện vẫn tồn tại một khoảng trống nghiên cứu (research gap): thiếu vắng các công trình khảo sát một cách có hệ thống việc tăng cường vùng nút thắt cổ chai của U-Net bằng các cơ chế lượng tử giàu năng lực biểu diễn -- đặc biệt là kết hợp nhiều mạch lượng tử đa tỷ lệ theo cơ chế Mixture of Experts (hỗn hợp nhiều nhánh xử lý chuyên biệt) -- đồng thời phối hợp với các khối mô hình hóa chuỗi hiệu quả để tổng hợp phụ thuộc không gian tầm xa với chi phí tính toán hợp lý.
+
+Động lực của khóa luận xuất phát từ mong muốn khai phá khoảng trống nghiên cứu này, thông qua việc kết hợp sức mạnh trích xuất đặc trưng không gian lượng tử với khả năng phục hồi cấu trúc không gian vốn có của U-Net, đồng thời củng cố bộ khung cổ điển bằng một khối tích chập đa tỷ lệ giàu trường nhìn (receptive field) để mô hình lai đạt được sự cân bằng giữa năng lực biểu diễn và chi phí mô phỏng.
+
+\section{Mục tiêu nghiên cứu}
+Khóa luận được thực hiện nhằm giải quyết các mục tiêu chính sau đây:
+\begin{enumerate}
+    \item \textbf{Xây dựng kiến trúc lai HQMoSS-Net (Hybrid Quantum-Classical U-Net):} Tích hợp một khối Quantum Mixture of Experts đa tỷ lệ (hỗn hợp nhiều nhánh xử lý lượng tử) cùng một khối chuỗi quét chọn lọc lấy cảm hứng từ Mamba (Lightweight Selective Scan) vào vùng nút thắt cổ chai của kiến trúc U-Net, đồng thời thay thế các khối tích chập cổ điển ở encoder/decoder bằng khối tích chập đa tỷ lệ có kết nối phần dư (Residual Dilated Multi-Scale) nhằm tăng cường khả năng trích xuất và tổng hợp đặc trưng.
+    \item \textbf{Thiết kế cơ chế QuantumMoE đa tỷ lệ:} Xây dựng một khối lượng tử linh hoạt gồm nhiều nhánh xử lý song song, trong đó mỗi nhánh là một mạch lượng tử tham số hóa xử lý các mảnh ảnh (patch) có kích thước và số qubit khác nhau, nhằm tối ưu hóa việc học các đặc trưng cục bộ và toàn cục tại vùng cổ chai của mô hình.
+    \item \textbf{So sánh công bằng với mô hình cơ sở (Classical Baseline):} Đánh giá hiệu năng của kiến trúc lượng tử đề xuất so với kiến trúc U-Net thuần cổ điển và các biến thể mạnh của nó trong các điều kiện kiểm soát nghiêm ngặt (cùng chia dữ liệu, cùng siêu tham số, cùng hàm mất mát), nhằm cô lập đóng góp thực sự của các khối được nhúng.
+    \item \textbf{Phân tích bóc tách có hệ thống:} Khảo sát đóng góp của từng thành phần (QuantumMoE, LSS, RDMS) và của số lớp mạch lượng tử thông qua các thí nghiệm bóc tách (ablation study); kèm một bước trực quan hóa định tính bằng Seg-Grad-CAM để kiểm chứng mô hình tập trung đúng vùng tổn thương.
+    \item \textbf{Đánh giá trên nhiều tập dữ liệu y tế:} Khảo sát hiệu năng và tính tổng quát hóa của mô hình lai trên hai tập dữ liệu y tế có đặc trưng ảnh khác biệt (PH2 -- ảnh dermoscopy; GlaS 2015 -- ảnh mô học).
+\end{enumerate}
+
+\section{Đối tượng và phạm vi nghiên cứu}
+\subsection{Đối tượng nghiên cứu}
+\begin{itemize}
+    \item Các kiến trúc mạng nơ-ron học sâu cho phân đoạn ảnh y sinh: U-Net \cite{ronneberger2015unet} và các biến thể UNet++ \cite{zhou2018unetplusplus}, Attention U-Net \cite{oktay2018attention}, R2U-Net \cite{alom2018r2unet}, V-Net \cite{milletari2016vnet}.
+    \item Các thành phần học máy lượng tử: mạch lượng tử tham số hóa (PQC), cơ chế mã hóa biên độ (Amplitude Embedding), cổng lượng tử và phép đo lượng tử (đo phân bố xác suất trạng thái cơ sở).
+    \item Cơ chế học máy theo nhiều nhánh xử lý: khung kiến trúc Mixture of Experts (MoE) áp dụng cho các mạch lượng tử đa tỷ lệ.
+    \item Khối tích chập đa tỷ lệ cổ điển: khối Residual Dilated Multi-Scale (RDMS) với các nhánh tích chập tách kênh (depthwise) giãn nở (dilated) và kết nối phần dư.
+    \item Mô hình không gian trạng thái (State Space Model) và cơ chế quét chọn lọc của Mamba \cite{gu2023mamba} cho mô hình hóa phụ thuộc không gian tầm xa.
+    \item Kỹ thuật Trí tuệ nhân tạo khả giải thích (XAI): Seg-Grad-CAM \cite{vinogradova2020seggradcam} cho bài toán phân đoạn.
+    \item Các tập dữ liệu phân đoạn ảnh y sinh: PH2 \cite{mendonca2013ph2} (ảnh dermoscopy) và GlaS 2015 \cite{sirinukunwattana2017glas} (ảnh mô học đại trực tràng).
+\end{itemize}
+
+\subsection{Phạm vi nghiên cứu}
+\begin{itemize}
+    \item Khóa luận giới hạn trong bài toán phân đoạn ảnh nhị phân 2D (2D binary segmentation).
+    \item Do những hạn chế về phần cứng lượng tử thực tế ở thời điểm hiện tại, toàn bộ các mô hình và mạch lượng tử trong nghiên cứu được triển khai, huấn luyện và đánh giá trên môi trường giả lập lượng tử (quantum simulator) sử dụng thư viện PennyLane (cụ thể là thiết bị giả lập \texttt{default.qubit} với phương pháp vi phân \texttt{backprop}).
+\end{itemize}
+
+\section{Ý nghĩa thực tiễn}
+Mặc dù được triển khai trên môi trường giả lập, nghiên cứu này góp phần cung cấp những bằng chứng thực nghiệm bước đầu về tính khả thi và tiềm năng của việc ứng dụng các mô hình học máy lai lượng tử - cổ điển (hybrid quantum-classical models) vào một bài toán phức tạp như phân đoạn ảnh y sinh. Đáng chú ý, các kết quả thực nghiệm cho thấy mô hình lai HQMoSS-Net đạt chất lượng phân đoạn cao hơn nhiều mô hình cổ điển có số tham số lớn hơn đáng kể, cho thấy khối lượng tử có thể đóng vai trò như một cơ chế trích xuất đặc trưng hiệu quả về tham số (parameter-efficient). Kết quả nghiên cứu góp phần bổ sung góc nhìn thực nghiệm cho lý thuyết về Quantum Machine Learning, đồng thời gợi mở khả năng ứng dụng trên các phần cứng lượng tử ở quy mô vừa và nhỏ (Noisy Intermediate-Scale Quantum - NISQ) trong tương lai, hướng tới các hệ thống hỗ trợ chẩn đoán y tế chính xác hơn.
+
+\section{Đóng góp của khóa luận}
+Khóa luận mang lại ba đóng góp khoa học và thực tiễn. Với mỗi đóng góp, khóa luận nêu rõ \emph{lý do} thực hiện và \emph{giá trị} mà nó mang lại, để làm nổi bật rằng mỗi đóng góp đều xuất phát từ một khoảng trống nghiên cứu cụ thể chứ không phải sự kết hợp tùy tiện.
+\begin{enumerate}
+    \item \textbf{Đề xuất kiến trúc HQMoSS-Net mới.} Khóa luận cung cấp một phương pháp luận có hệ thống về việc nhúng thành phần lượng tử vào vùng nút thắt cổ chai của U-Net, kết hợp khối Quantum Mixture of Experts đa tỷ lệ, khối Lightweight Selective Scan (LSS) và khối tích chập đa tỷ lệ RDMS. \emph{Vì sao làm vậy:} phần lớn công trình QML trước đây hoặc chỉ dùng một khối lượng tử đơn, hoặc tập trung vào phân loại; và những nỗ lực rất gần đây đưa Quantum MoE vào phân đoạn ảnh mới chỉ xuất hiện trên dữ liệu ngoài y sinh. Việc phối hợp đồng thời ba cơ chế bổ trợ (đa tỷ lệ cổ điển, nhiều nhánh xử lý lượng tử, và mô hình hóa chuỗi tuyến tính) trong một kiến trúc phân đoạn ảnh y sinh chưa được khảo sát trong các công trình trước đó theo hiểu biết của nhóm, và như thực nghiệm cho thấy, chính sự phối hợp này tạo ra hiệu ứng cộng hưởng giúp cải thiện hiệu năng rõ rệt.
+    \item \textbf{Thiết kế khối QuantumMoE đa tỷ lệ theo mảnh ảnh.} Trong khi những nỗ lực rất gần đây mới bắt đầu đưa Mixture of Experts vào không gian lượng tử (khung tổng quát QMoE \cite{nguyen2025qmoe} cho phân loại, và HQF-Net \cite{hossain2026hqfnet} cho phân đoạn ảnh viễn thám), khóa luận là một trong những công trình sớm đưa Quantum MoE vào phân đoạn ảnh \emph{y sinh} \emph{tính đến thời điểm thực hiện} (lĩnh vực QML cho phân đoạn ảnh đang phát triển rất nhanh nên khung cảnh này có thể sớm thay đổi), với một thiết kế mới ở đó các nhánh xử lý lượng tử được phân hóa theo \emph{kích thước mảnh ảnh} (patch size) để tạo tính đa tỷ lệ ngay trong không gian lượng tử, điều phối bởi mạng định tuyến cổ điển và bao bọc bởi kết nối phần dư. \emph{Vì sao làm vậy:} vùng bottleneck cần nắm bắt cấu trúc ở nhiều tỷ lệ cùng lúc; một mạch lượng tử đơn với một kích thước patch cố định không thể vừa nhìn chi tiết cục bộ vừa bao quát toàn cục, trong khi cơ chế nhiều nhánh xử lý đa tỷ lệ cho phép mô hình \emph{tự phân bổ} mỗi vùng ảnh cho nhánh phù hợp nhất, khai thác biểu diễn lượng tử một cách hiệu quả về tham số.
+    \item \textbf{Đánh giá thực nghiệm và bóc tách có hệ thống.} Khóa luận thiết lập quy trình kiểm định chéo $5$-fold với bộ tám độ đo, phân tích bóc tách đầy đủ qua một lưới tám cấu hình thực nghiệm và khảo sát ảnh hưởng của số lớp mạch, so sánh với năm mô hình cổ điển trên hai tập dữ liệu (PH2 và GlaS 2015). \emph{Vì sao làm vậy:} để một tuyên bố ``khối lượng tử có ích'' trở nên đáng tin, cần cô lập đóng góp của từng thành phần trong điều kiện kiểm soát nghiêm ngặt; thiết kế lưới cấu hình thực nghiệm cho phép quy mọi chênh lệch hiệu năng về đúng thành phần được bật, loại trừ nghi ngờ rằng lợi thế chỉ đến từ việc tăng tham số. Một đối chứng bổ sung theo hướng này là so sánh trực tiếp với Classical MoE -- một khối cổ điển \emph{mirror} đúng kiến trúc QuantumMoE nhưng nhiều tham số hơn hẳn (mục~\ref{subsec:cmoe_vs_qumoe}); khối này không đạt hiệu năng và độ ổn định tương đương, cho một tín hiệu khiêm tốn nhưng cụ thể rằng lợi ích quan sát được khó có thể quy hoàn toàn cho riêng cấu trúc. Bên cạnh số liệu định lượng, khóa luận bổ sung một bước trực quan hóa kết quả bằng Seg-Grad-CAM để minh họa rằng mô hình lai tập trung đúng vào vùng tổn thương.
+\end{enumerate}
+
+\section{Cấu trúc khóa luận}
+Khóa luận được trình bày trong 6 chương với nội dung tóm tắt như sau:
+\begingroup
+\setstretch{1.0}
+\begin{itemize}[itemsep=3pt, topsep=3pt, parsep=0pt]
+    \item \textbf{Chương 1 - Giới thiệu:} Trình bày tổng quan về bài toán, động lực, mục tiêu, đối tượng, phạm vi nghiên cứu, ý nghĩa thực tiễn và các đóng góp chính của khóa luận.
+    \item \textbf{Chương 2 - Công trình liên quan:} Điểm qua các nghiên cứu về Deep Learning trong phân đoạn ảnh, các ứng dụng của Quantum Machine Learning trong y tế, cơ chế Mixture of Experts và mô hình không gian trạng thái (Mamba).
+    \item \textbf{Chương 3 - Cơ sở lý thuyết:} Cung cấp nền tảng lý thuyết về bài toán phân đoạn ảnh y tế, kiến trúc U-Net và tích chập giãn nở, các khái niệm cơ bản về tính toán lượng tử, học máy lượng tử, Mixture of Experts, mô hình không gian trạng thái và kỹ thuật diễn giải Seg-Grad-CAM.
+    \item \textbf{Chương 4 - Phương pháp đề xuất:} Mô tả chi tiết kiến trúc lai HQMoSS-Net, các khối lượng tử (QuantumMoE, mạng định tuyến), khối LSS, khối RDMS, cùng diễn giải toán học và tin học của mô hình, chiến lược so sánh và chiến lược diễn giải mô hình bằng Seg-Grad-CAM.
+    \item \textbf{Chương 5 - Thực nghiệm:} Trình bày về các tập dữ liệu, cấu hình thực nghiệm, kết quả đánh giá (Intersection over Union -- IoU, Dice và các chỉ số khác) và các phân tích chuyên sâu (ablation study, phân tích định tuyến, trực quan hóa Seg-Grad-CAM).
+    \item \textbf{Chương 6 - Kết luận và Hướng phát triển:} Tóm tắt lại các kết quả đạt được, đánh giá mức độ hoàn thành mục tiêu, chỉ ra những hạn chế và đề xuất các hướng nghiên cứu mở rộng trong tương lai.
+\end{itemize}
+\endgroup

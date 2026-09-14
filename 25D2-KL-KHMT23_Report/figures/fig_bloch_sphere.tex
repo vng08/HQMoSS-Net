@@ -1,0 +1,44 @@
+% Hình: Mặt cầu Bloch (Mục 3.3.1)
+% Gói: TikZ + tikz-3dplot
+\documentclass[border=6pt]{standalone}
+\usepackage[utf8]{vietnam}
+\usepackage{amsmath,amssymb}
+\usepackage{xcolor}
+\usepackage{tikz}
+\usepackage{tikz-3dplot}
+\usetikzlibrary{arrows.meta,calc}
+\definecolor{qpurple}{HTML}{7E57C2}
+\definecolor{cvblue}{HTML}{35618E}
+\definecolor{slate}{HTML}{5B6470}
+\definecolor{inkdark}{HTML}{23272E}
+\tikzset{
+  >={Stealth[length=2.4mm]},
+  every node/.style={font=\sffamily\small, text=inkdark},
+}
+\begin{document}
+\tdplotsetmaincoords{68}{122}
+\begin{tikzpicture}[tdplot_main_coords, scale=2.6, line cap=round]
+  \pgfmathsetmacro{\rad}{1}
+  % Mặt cầu (đường bao + xích đạo)
+  \draw[slate!55, thin] (0,0,0) circle (\rad);
+  \tdplotdrawarc[slate!45, thin]{(0,0,0)}{\rad}{0}{360}{}{}
+  % Trục toạ độ
+  \draw[->, slate] (0,0,0) -- (1.35,0,0) node[anchor=north east, text=slate] {$x$};
+  \draw[->, slate] (0,0,0) -- (0,1.35,0) node[anchor=north west, text=slate] {$y$};
+  \draw[->, slate] (0,0,0) -- (0,0,1.35) node[anchor=south, text=slate] {$z$};
+  % Trục z kéo xuống cực nam
+  \draw[slate, thin, dashed] (0,0,0) -- (0,0,-1.1);
+  % Cực = trạng thái cơ sở
+  \node[anchor=south, text=cvblue] at (0,0,1) {$|0\rangle$};
+  \node[anchor=north east, text=cvblue] at (0,0,-1.1) {$|1\rangle$};
+  % Vector trạng thái |psi> với góc theta, varphi
+  \tdplotsetcoord{P}{\rad}{52}{40}
+  \draw[->, qpurple, line width=1.1pt] (0,0,0) -- (P) node[anchor=south west, text=qpurple] {$|\psi\rangle$};
+  % Hình chiếu và cung góc
+  \draw[dashed, slate!70] (0,0,0) -- (Pxy);
+  \draw[dashed, slate!70] (P) -- (Pxy);
+  \tdplotdrawarc[cvblue]{(0,0,0)}{0.34}{0}{40}{anchor=north, text=cvblue}{$\varphi$}
+  \tdplotsetthetaplanecoords{40}
+  \tdplotdrawarc[tdplot_rotated_coords, qpurple]{(0,0,0)}{0.5}{0}{52}{anchor=south east, text=qpurple}{$\theta$}
+\end{tikzpicture}
+\end{document}

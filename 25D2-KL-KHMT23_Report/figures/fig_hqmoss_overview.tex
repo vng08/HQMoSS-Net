@@ -1,0 +1,103 @@
+% Hình CHÍNH: Tổng quan kiến trúc HQMoSS-Net (Mục 4.1)
+% Bố cục đối xứng chữ U (U-shape Symmetry)
+\documentclass[border=8pt]{standalone}
+\usepackage[utf8]{vietnam}
+\usepackage{amsmath,amssymb}
+\usepackage{xcolor}
+\usepackage{tikz}
+\usetikzlibrary{positioning,fit,arrows.meta,calc,backgrounds}
+
+% ---- Bảng màu học thuật dùng chung ----
+\definecolor{cvblue}{HTML}{35618E}\definecolor{cvbluefill}{HTML}{DCE7F2}
+\definecolor{decgreen}{HTML}{5E7F4E}\definecolor{decfill}{HTML}{E1EBD8}
+\definecolor{qpurple}{HTML}{7E57C2}\definecolor{qfill}{HTML}{ECE3F7}
+\definecolor{lssorange}{HTML}{CF8A2A}\definecolor{lssfill}{HTML}{FBE7C6}
+\definecolor{slate}{HTML}{5B6470}\definecolor{slatefill}{HTML}{EDEFF2}
+\definecolor{inkdark}{HTML}{23272E}
+
+\tikzset{
+  >={Stealth[length=2.6mm]},
+  every node/.style={font=\sffamily\small, text=inkdark},
+  % Khối Encoder (Thu nhỏ dần)
+  enc/.style={draw=cvblue, fill=cvbluefill, rounded corners=2.5pt, thick, align=center, minimum height=9mm, font=\sffamily\footnotesize},
+  % Khối Decoder (Phóng to dần)
+  dec/.style={draw=decgreen, fill=decfill, rounded corners=2.5pt, thick, align=center, minimum height=9mm, font=\sffamily\footnotesize},
+  % Khối lượng tử & Mamba ở đáy
+  qmoe/.style={draw=qpurple, fill=qfill, rounded corners=3pt, very thick, align=center, minimum height=14mm, minimum width=42mm},
+  lss/.style={draw=lssorange, fill=lssfill, rounded corners=3pt, very thick, align=center, minimum height=14mm, minimum width=26mm},
+  % Nhãn kích thước Tensor
+  tag/.style={draw=slate, fill=white, rounded corners=2pt, align=center, minimum height=6mm, font=\sffamily\scriptsize, inner sep=2pt},
+  % I/O
+  io/.style={draw=slate, dashed, rounded corners=2pt, align=center, minimum height=9mm, minimum width=15mm, font=\sffamily\footnotesize},
+  % Đường truyền
+  flow/.style={-{Stealth[length=2.6mm]}, line width=1pt, draw=inkdark},
+  skip/.style={-{Stealth[length=2.2mm]}, line width=0.8pt, dashed, draw=slate},
+  lbl/.style={font=\sffamily\scriptsize, text=slate},
+}
+
+\begin{document}
+\begin{tikzpicture}
+  % ==========================================
+  % 1. NHÁNH MÃ HÓA (ENCODER) - CỘT TRÁI
+  % ==========================================
+  \node[enc, minimum width=38mm] (e1) {\textbf{RDMS} \ $f{=}8$ \ \ $192{\times}256$};
+  \node[enc, minimum width=33mm, below=7mm of e1] (e2) {\textbf{RDMS} \ $f{=}16$ \ \ $96{\times}128$};
+  \node[enc, minimum width=28mm, below=7mm of e2] (e3) {\textbf{RDMS} \ $f{=}32$ \ \ $48{\times}64$};
+  \node[enc, minimum width=23mm, below=7mm of e3] (e4) {\textbf{RDMS} \ $f{=}16$ \ \ $24{\times}32$};
+  \node[enc, minimum width=18mm, below=7mm of e4] (e5) {\textbf{RDMS} \ $f{=}8$ \ \ $12{\times}16$};
+  
+  \foreach \a/\b in {e1/e2,e2/e3,e3/e4,e4/e5}
+     \draw[flow] (\a) -- node[left, lbl] {$\downarrow$ pool} (\b);
+
+  % ==========================================
+  % 2. NHÁNH GIẢI MÃ (DECODER) - CỘT PHẢI
+  % Khoảng cách ngang được set cố định 95mm để tạo không gian cho Bottleneck
+  % ==========================================
+  \node[dec, minimum width=18mm, right=95mm of e5] (d5) {\textbf{RDMS} \ $f{=}8$ \ \ $12{\times}16$};
+  \node[dec, minimum width=23mm, above=7mm of d5] (d4) {\textbf{RDMS} \ $f{=}16$ \ \ $24{\times}32$};
+  \node[dec, minimum width=28mm, above=7mm of d4] (d3) {\textbf{RDMS} \ $f{=}32$ \ \ $48{\times}64$};
+  \node[dec, minimum width=33mm, above=7mm of d3] (d2) {\textbf{RDMS} \ $f{=}16$ \ \ $96{\times}128$};
+  \node[dec, minimum width=38mm, above=7mm of d2] (d1) {\textbf{RDMS} \ $f{=}8$ \ \ $192{\times}256$};
+  
+  \foreach \a/\b in {d5/d4,d4/d3,d3/d2,d2/d1}
+     \draw[flow] (\a) -- node[right, lbl] {$\uparrow$ ConvT} (\b);
+
+  % ==========================================
+  % 3. NÚT THẮT CỔ CHAI (BOTTLENECK) - TRUNG TÂM
+  % ==========================================
+  % Tính toán điểm trung tâm tuyệt đối giữa e5 và d5, hạ xuống 15mm
+  \coordinate (bot_mid) at ($(e5.east)!0.5!(d5.west) + (0, -15mm)$);
+
+  % Đặt QuantumMoE và LSS đối xứng qua điểm trung tâm này
+  \node[qmoe, left=4mm of bot_mid] (qmoe) {\textbf{QuantumMoE}\\[2pt]\scriptsize 3 nhánh xử lý đa tỷ lệ\\[-1pt]\scriptsize $+$ router $+$ residual};
+  \node[lss, right=4mm of bot_mid] (lss) {\textbf{LSS}\\[2pt]\scriptsize selective scan};
+
+  % Chú thích cho cả vùng Bottleneck
+  \node[lbl, above=1mm of qmoe.north east] {Bottleneck (Không gian đặc trưng $C \times \frac{H}{16} \times \frac{W}{16}$)};
+
+  % Đường truyền hình chữ U dưới đáy (Vuông góc)
+  % Nhãn Tensor (bt) được gắn trực tiếp lên đường truyền để không làm rối bố cục
+  \draw[flow] (e5.south) |- (qmoe.west) node[pos=0.75, above, tag] {$6{\times}8{\times}8$};
+  \draw[flow] (qmoe) -- (lss);
+  \draw[flow] (lss.east) -| (d5.south) node[pos=0.25, above, tag] {$12{\times}16{\times}C$};
+
+  % ==========================================
+  % 4. KẾT NỐI TẮT (SKIP CONNECTIONS)
+  % ==========================================
+  \foreach \a/\b in {e1/d1,e2/d2,e3/d3,e4/d4,e5/d5}
+     \draw[skip] (\a.east) -- (\b.west);
+  
+  % Chèn nhãn "skip connections" vào chính giữa tầng 1, dùng fill=white để che đứt nét phía dưới
+  \node[lbl, fill=white, inner sep=3pt] at ($(e1.east)!0.5!(d1.west)$) {skip connections (copy \& concatenate)};
+
+  % ==========================================
+  % 5. ĐẦU VÀO / ĐẦU RA (I/O)
+  % ==========================================
+  \node[io, left=12mm of e1] (in) {Ảnh $X$\\$192{\times}256{\times}3$};
+  \node[io, right=12mm of d1] (out) {$\hat{Y}$ (sigmoid)\\$192{\times}256{\times}1$};
+  
+  \draw[flow] (in) -- (e1);
+  \draw[flow] (d1) -- (out);
+
+\end{tikzpicture}
+\end{document}

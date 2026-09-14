@@ -1,0 +1,80 @@
+========================================================================
+HƯỚNG DẪN CÀI ĐẶT — HQMoSS-Net
+========================================================================
+Đề tài: HQMoSS-Net — Mạng phân vùng ảnh y khoa lai lượng tử (Quantum-MoE)
+        với khối Selective Scan, đa tỉ lệ và tầm xa.
+
+------------------------------------------------------------------------
+1. YÊU CẦU HỆ THỐNG
+------------------------------------------------------------------------
+- Python 3.10 hoặc 3.11 (khuyến nghị; PennyLane 0.41 chưa hỗ trợ 3.13+).
+- RAM tối thiểu 8 GB (mô phỏng lượng tử tốn bộ nhớ). Có GPU sẽ nhanh hơn
+  nhưng không bắt buộc.
+- Hệ điều hành: Windows / Linux / macOS.
+
+------------------------------------------------------------------------
+2. TẠO MÔI TRƯỜNG ẢO (khuyến nghị)
+------------------------------------------------------------------------
+Windows (PowerShell):
+    python -m venv .venv
+    .venv\Scripts\Activate.ps1
+
+Linux / macOS:
+    python3 -m venv .venv
+    source .venv/bin/activate
+
+------------------------------------------------------------------------
+3. CÀI THƯ VIỆN
+------------------------------------------------------------------------
+Trong thư mục src/, chạy:
+    pip install --upgrade pip
+    pip install -r requirements.txt
+
+Ghi chú:
+- Các phiên bản trong requirements.txt đã được cố định đúng như môi trường
+  Kaggle nơi thí nghiệm được thực hiện, nhằm tái lập chính xác kết quả.
+- Nếu chỉ chạy các mô hình baseline (UNet++, Attention U-Net, R2U-Net, VNet)
+  thì không bắt buộc cài nhóm PennyLane, nhưng nên cài đủ để chạy được
+  HQMoSS-Net và phần trực quan Seg-Grad-CAM.
+- Phần độ đo interpretability (explain.py --mode metrics/compare) cần thêm scipy;
+  gói này đã có sẵn trong requirements.txt nên không phải cài riêng.
+
+------------------------------------------------------------------------
+4. CHUẨN BỊ DỮ LIỆU & KẾT QUẢ
+------------------------------------------------------------------------
+Dữ liệu và kết quả numpy được đặt NGAY TRONG thư mục src/ theo cấu trúc:
+
+    25D2-KL-KHMT23/src/
+    ├── Data/
+    │   ├── GlaS_Fold_Dataset/   <-- ảnh + mask + folds của GlaS 2015
+    │   │   └── images/  masks/  folds/
+    │   └── PH2_Dataset/         <-- ảnh + mask + folds của PH2
+    │       └── images/  masks/  folds/
+    ├── Reuslt/
+    │   ├── GlaS/                <-- kết quả numpy trên GlaS (theo từng mô hình)
+    │   └── PH2/                 <-- kết quả numpy trên PH2 (theo từng mô hình)
+    └── XAI-result/
+        └── XAI_Ph2_HQMoSS/      <-- HPweights_fold1.weights.h5 + thư mục gradcam/ (ảnh Seg-Grad-CAM)
+
+Mỗi thư mục folds/ chứa các file fold_{1..5}_train.csv và fold_{1..5}_val.csv
+với 2 cột: image_filename, mask_filename.
+
+Nếu muốn đặt dữ liệu ở vị trí khác, có 2 cách trỏ đường dẫn:
+  (a) Đặt biến môi trường trước khi chạy:
+        Windows : $env:HQMOSS_DATA_ROOT="D:\duong\dan\du\lieu"
+                  $env:HQMOSS_RESULT_ROOT="D:\duong\dan\ket\qua"
+                  $env:HQMOSS_XAI_ROOT="D:\duong\dan\xai"
+        Linux   : export HQMOSS_DATA_ROOT=/duong/dan/du/lieu
+                  export HQMOSS_RESULT_ROOT=/duong/dan/ket/qua
+                  export HQMOSS_XAI_ROOT=/duong/dan/xai
+  (b) Hoặc sửa trực tiếp DATA_ROOT / RESULT_ROOT / XAI_ROOT trong file src/config.py.
+
+------------------------------------------------------------------------
+5. KIỂM TRA CÀI ĐẶT
+------------------------------------------------------------------------
+Trong thư mục src/, chạy thử:
+    python -c "import tensorflow, pennylane, scipy; print('TF', tensorflow.__version__, '| PennyLane', pennylane.__version__, '| SciPy', scipy.__version__)"
+
+Nếu in ra phiên bản mà không lỗi là đã cài thành công.
+Xem tiếp HuongDanSuDung.txt để biết cách huấn luyện, đánh giá và trực quan hoá.
+========================================================================

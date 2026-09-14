@@ -1,0 +1,91 @@
+% Hình: Khối QuantumMoE đa tỷ lệ (Mục 4.4) - 3 nhánh xử lý + router + residual
+% Router nhận Concat[F, E1, E2, E3] -> Conv 1x1 -> Softmax  (đúng theo code Router())
+\documentclass[border=6pt]{standalone}
+\usepackage[utf8]{vietnam}
+\usepackage{amsmath,amssymb}
+\usepackage{xcolor}
+\usepackage{tikz}
+\usetikzlibrary{positioning,fit,arrows.meta,calc,backgrounds}
+
+\definecolor{qpurple}{HTML}{7E57C2}\definecolor{qfill}{HTML}{ECE3F7}
+\definecolor{slate}{HTML}{5B6470}\definecolor{slatefill}{HTML}{EDEFF2}
+\definecolor{lssorange}{HTML}{CF8A2A}\definecolor{lssfill}{HTML}{FBE7C6}
+\definecolor{inkdark}{HTML}{23272E}
+
+\tikzset{
+  >={Stealth[length=2.4mm]},
+  every node/.style={font=\sffamily\small, text=inkdark},
+  io/.style={draw=slate, rounded corners=2pt, thick, align=center, minimum height=8mm, minimum width=13mm},
+  expert/.style={draw=qpurple, fill=qfill, rounded corners=2pt, thick, align=center, minimum height=9mm, minimum width=40mm, font=\sffamily\footnotesize},
+  router/.style={draw=slate, fill=slatefill, rounded corners=2pt, thick, align=center, minimum height=9mm, font=\sffamily\footnotesize},
+  op/.style={draw=lssorange, fill=lssfill, circle, thick, inner sep=1pt, minimum size=6.5mm},
+  flow/.style={-{Stealth[length=2.4mm]}, line width=0.9pt, draw=inkdark},
+  tap/.style={-{Stealth[length=2mm]}, line width=0.8pt, draw=qpurple!70, dashed},
+  gate/.style={-{Stealth[length=2mm]}, line width=0.8pt, draw=slate, dashed},
+  lbl/.style={font=\sffamily\scriptsize, text=slate},
+  % Mặt nạ đục lỗ nền trắng để tránh các nét vẽ đè xuyên qua text
+  txtmask/.style={fill=white, inner sep=2pt, rounded corners=1pt}
+}
+
+\begin{document}
+\begin{tikzpicture}
+  % Định vị khối ngõ vào chính
+  \node[io] (f) {$F$\\ \scriptsize $6{\times}8{\times}8$};
+  
+  % Định vị các khối Chuyên gia (Experts)
+  \node[expert, above right=6mm and 22mm of f] (e1) {Expert 1 \ $2{\times}2$, $5$ qubit};
+  \node[expert, below=6mm of e1] (e2) {Expert 2 \ $2{\times}4$, $6$ qubit};
+  \node[expert, below=6mm of e2] (e3) {Expert 3 \ $8{\times}8$, $9$ qubit};
+  
+  % Định vị bộ trộn và bộ cộng ngõ ra
+  \node[op, right=28mm of e2] (mix) {$\sum$};
+  \node[op, right=14mm of mix] (add) {$+$};
+  \node[io, right=14mm of add] (out) {out};
+  
+  % SỬA ĐỔI 1: Dịch Router sang phải một chút (xshift) và mở rộng chiều rộng (minimum width)
+  % Điều này giúp bao trọn cả đường hạ xuống từ E3 mà không bị lệch ra ngoài ô.
+  \node[router, below=14mm of e3, xshift=6mm, minimum width=76mm]
+        (rt) {Router:\ Concat$[F,E_1,E_2,E_3]\ \to\ \mathrm{Conv}_{1\times1}\ \to\ \mathrm{Softmax}$};
+
+  % Luồng xử lý từ F rẽ nhánh đi vào 3 experts
+  \coordinate (sp) at ($(f.east)+(6mm,0)$);
+  \draw[flow,-] (f.east) -- (sp); \fill (sp) circle (1.3pt);
+  \draw[flow] (sp) |- (e1.west);
+  \draw[flow] (sp) -- (e2.west);
+  \draw[flow] (sp) |- (e3.west);
+  
+  % Trích xuất đặc trưng F đưa xuống Router (Đi vòng bọc bên ngoài cạnh trái Router rất đẹp)
+  \draw[tap] (sp) |- ($(rt.west)+(-4mm,0)$) -- (rt.west) 
+        node[pos=0.4, left, lbl, txtmask, xshift=-1mm] {Đặc trưng $F$};
+
+  % Các điểm rẽ nhánh từ đầu ra Expert sang bộ trộn (mix) và xuống router
+  \coordinate (d1) at ($(e1.east)+(6mm,0)$);
+  \coordinate (d2) at ($(e2.east)+(10mm,0)$);
+  \coordinate (d3) at ($(e3.east)+(14mm,0)$);
+  
+  \draw[flow,-] (e1.east) -- (d1); \draw[flow] (d1) |- (mix.135); \fill (d1) circle (1.3pt);
+  \draw[flow,-] (e2.east) -- (d2); \draw[flow] (d2) -- (mix.180);  \fill (d2) circle (1.3pt);
+  \draw[flow,-] (e3.east) -- (d3); \draw[flow] (d3) |- (mix.225); \fill (d3) circle (1.3pt);
+  
+  % Đường kết nối thông tin E1, E2, E3 đứt đoạn đi vuông góc cắm trực tiếp vào mặt trên Router
+  \draw[tap] (d1) -- (d1 |- rt.north) node[pos=0.3, right, lbl, txtmask] {$E_1$};
+  \draw[tap] (d2) -- (d2 |- rt.north) node[pos=0.3, right, lbl, txtmask] {$E_2$};
+  \draw[tap] (d3) -- (d3 |- rt.north) node[pos=0.3, right, lbl, txtmask] {$E_3$};
+
+  % SỬA ĐỔI 2: Định tuyến lại đường truyền trọng số w từ Router đến Bộ trộn (mix)
+  % Thay vì đi vòng qua đáy bộ trộn, đường đi trực tiếp bằng kiểu |- (lên cao rồi rẽ ngang vào đáy) 
+  % giúp tránh chồng chéo lên nhãn và các đường truyền khác.
+  \draw[gate] (rt.east) -| (mix.south) 
+        node[pos=0.5, right, lbl, txtmask, yshift=-3mm] {$w=(w_1,w_2,w_3)$};
+
+  % Luồng kết nối phần dư (Residual F) đi vòng sâu phía bên dưới Router để tránh va cắt
+  \draw[flow] (mix) -- (add);
+  \draw[flow] (add) -- (out);
+  \draw[flow, draw=inkdark!80!black, dashed] (f.south) |- ($(rt.south) + (0,-6mm)$) -| (add.south)
+        node[pos=0.25, above, lbl, txtmask] {Kết nối phần dư (Residual $F$)};
+
+  % Các nhãn văn bản công thức và chú thích cấu trúc thuật toán
+  \node[lbl, txtmask, above=4mm of e1] {mỗi expert: LayerNorm $\to$ Amplitude embed $\to$ PQC ($L{=}5$) $\to$ probs $\to$ LayerNorm $\to$ overlap-add};
+  \node[lbl, txtmask, below=4mm of add, text width=42mm, align=center] {$\mathrm{QuantumMoE}(F)=F+\textstyle\sum_{i=1}^3 w_i\odot E_i$};
+\end{tikzpicture}
+\end{document}

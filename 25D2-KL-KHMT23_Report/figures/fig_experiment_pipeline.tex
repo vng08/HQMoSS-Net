@@ -1,0 +1,65 @@
+% Hình: Quy trình thực nghiệm huấn luyện - đánh giá (Mục 5.4)
+\documentclass[border=6pt]{standalone}
+\usepackage[utf8]{vietnam}
+\usepackage{amsmath,amssymb}
+\usepackage{xcolor}
+\usepackage{tikz}
+\usetikzlibrary{positioning,fit,arrows.meta,calc,backgrounds}
+
+\definecolor{cvblue}{HTML}{35618E}\definecolor{cvbluefill}{HTML}{DCE7F2}
+\definecolor{decgreen}{HTML}{5E7F4E}\definecolor{decfill}{HTML}{E1EBD8}
+\definecolor{qpurple}{HTML}{7E57C2}\definecolor{qfill}{HTML}{ECE3F7}
+\definecolor{slate}{HTML}{5B6470}\definecolor{slatefill}{HTML}{EDEFF2}
+\definecolor{evorange}{HTML}{CF8A2A}\definecolor{evfill}{HTML}{FBE7C6}
+\definecolor{inkdark}{HTML}{23272E}
+
+\tikzset{
+  >={Stealth[length=2.4mm]},
+  every node/.style={font=\sffamily\footnotesize, text=inkdark},
+  data/.style={draw=slate, fill=slatefill, rounded corners=2pt, thick, align=center, minimum height=10mm, minimum width=24mm},
+  prep/.style={draw=cvblue, fill=cvbluefill, rounded corners=2pt, thick, align=center, minimum height=10mm, minimum width=24mm},
+  train/.style={draw=decgreen, fill=decfill, rounded corners=2pt, thick, align=center, minimum height=10mm, minimum width=24mm},
+  eval/.style={draw=evorange, fill=evfill, rounded corners=2pt, thick, align=center, minimum height=10mm, minimum width=24mm},
+  model/.style={draw=qpurple, fill=qfill, rounded corners=4pt, thick, align=center, minimum height=14mm, minimum width=38mm, font=\sffamily\small\bfseries, text=qpurple!50!black},
+  flow/.style={-{Stealth[length=2.4mm]}, line width=0.9pt, draw=inkdark},
+  bidir/.style={{Stealth[length=2.4mm]}-{Stealth[length=2.4mm]}, line width=0.9pt, draw=inkdark},
+  lbl/.style={font=\sffamily\scriptsize, text=slate},
+  % Style riêng cho nhãn dài để không đè khối
+  longlbl/.style={font=\sffamily\scriptsize, text=slate, align=center, fill=white, inner sep=2pt}
+}
+
+\begin{document}
+\begin{tikzpicture}[x=1.3cm, y=1.2cm]
+  % 1. HÀNG TRÊN
+  \node[data] (raw) at (-4, 2) {Dữ liệu PH2 \& GlaS};
+  \node[prep] (prep) at (0, 2) {Tiền xử lý};
+  \node[prep] (split) at (4, 2) {Chia 5-fold};
+
+  % 2. HÀNG GIỮA - Nới rộng khoảng cách ngang để nhãn không đè
+  \node[data] (report) at (-4, 0) {Báo cáo kết quả};
+  \node[model] (qmoe) at (0, 0) {Mạng lai HQMoSS-Net};
+  \node[train] (fit) at (4, 0) {Huấn luyện 60 epoch};
+
+  % 3. HÀNG DƯỚI
+  \node[eval] (metric) at (-4, -2) {8 độ đo đánh giá};
+  \node[eval] (pred) at (0, -2) {Dự đoán Validation};
+
+  % 4. VẼ FLOW
+  \draw[flow] (raw) -- (prep);
+  \draw[flow] (prep) -- (split);
+  \draw[flow] (split) -- (fit) node[midway, right, lbl] {Train Data};
+  
+  % Fix lỗi nhãn đè ở đây: đẩy cao lên 4mm
+  \draw[bidir] (fit) -- (qmoe) 
+      node[midway, above=4mm, longlbl] {Cập nhật\\trọng số};
+
+  \draw[flow] (qmoe) -- (pred) node[midway, right, lbl] {Val Data};
+  \draw[flow] (pred) -- (metric);
+  \draw[flow] (metric) -- (report);
+
+  % 5. VÒNG LẶP
+  \draw[flow, dashed, draw=slate] (metric.south) 
+      -- (-4, -3) -- (5.5, -3) -- (5.5, 2) -- (split.east);
+      
+\end{tikzpicture}
+\end{document}

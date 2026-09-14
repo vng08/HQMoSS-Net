@@ -1,0 +1,83 @@
+% Hình: Tái tổ hợp overlap-add với stride 1 (Mục 4.4)
+\documentclass[border=8pt]{standalone}
+\usepackage[utf8]{vietnam}
+\usepackage{amsmath,amssymb}
+\usepackage{xcolor}
+\usepackage{tikz}
+\usetikzlibrary{positioning,fit,arrows.meta,calc,backgrounds}
+
+% ---- Bảng màu học thuật dùng chung ----
+\definecolor{cvblue}{HTML}{35618E}\definecolor{cvbluefill}{HTML}{DCE7F2}
+\definecolor{qpurple}{HTML}{7E57C2}\definecolor{qfill}{HTML}{ECE3F7}
+\definecolor{lssorange}{HTML}{CF8A2A}\definecolor{lssfill}{HTML}{FBE7C6}
+\definecolor{slate}{HTML}{5B6470}\definecolor{slatefill}{HTML}{EDEFF2}
+\definecolor{inkdark}{HTML}{23272E}
+
+\tikzset{
+  >={Stealth[length=2.4mm]},
+  every node/.style={font=\sffamily\footnotesize, text=inkdark},
+  % Ô lưới cơ bản
+  cell/.style={draw=slate!50, minimum size=6mm, inner sep=0pt},
+  % Khối PQC
+  pqc/.style={draw=qpurple, fill=qfill, rounded corners=3pt, thick, align=center, minimum height=14mm, minimum width=20mm},
+  % Đường truyền
+  flow/.style={-{Stealth[length=2.4mm]}, line width=1pt, draw=inkdark},
+  lbl/.style={font=\sffamily\scriptsize, text=slate},
+}
+
+\begin{document}
+\begin{tikzpicture}
+  % ==========================================
+  % 1. LƯỚI ĐẦU VÀO (INPUT GRID)
+  % ==========================================
+  \begin{scope}[local bounding box=grid_in]
+    \foreach \i in {0,...,3}{
+      \foreach \j in {0,...,4}{
+        \node[cell] (c-\i-\j) at (\j*6mm, -\i*6mm) {};
+      }
+    }
+  \end{scope}
+  
+  % Vẽ các patch chồng lấn dùng fill opacity (Sẽ tự động đậm lên ở vùng giao nhau)
+  % Patch 1 (Tím)
+  \filldraw[draw=qpurple, fill=qpurple!40, fill opacity=0.5, thick, rounded corners=1.5pt] 
+      (c-1-1.north west) rectangle (c-2-2.south east);
+  % Patch 2 (Xanh)
+  \filldraw[draw=cvblue, fill=cvbluefill, fill opacity=0.5, thick, rounded corners=1.5pt] 
+      (c-1-2.north west) rectangle (c-2-3.south east);
+  % Patch 3 (Cam)
+  \filldraw[draw=lssorange, fill=lssfill, fill opacity=0.5, thick, rounded corners=1.5pt] 
+      (c-2-1.north west) rectangle (c-3-2.south east);
+
+  \node[lbl, below=2mm of grid_in, align=center] {Các patch $2{\times}2$ trượt\\stride $1$ (chồng lấn)};
+
+  % ==========================================
+  % 2. KHỐI XỬ LÝ LƯỢNG TỬ (PQC)
+  % ==========================================
+  \node[pqc, right=16mm of grid_in] (pqc) {\textbf{PQC}\\xử lý theo\\patch};
+  \draw[flow] (grid_in.east) -- (pqc.west);
+
+  % ==========================================
+  % 3. LƯỚI ĐẦU RA (OUTPUT GRID - SAU KHI CỘNG GỘP)
+  % ==========================================
+  \begin{scope}[local bounding box=grid_out, shift={($(pqc.east)+(16mm,0)$)}]
+    \foreach \i in {0,...,3}{
+      \foreach \j in {0,...,4}{
+        \node[cell, fill=slatefill!30] (o-\i-\j) at (\j*6mm, -\i*6mm) {};
+      }
+    }
+    % Minh họa điểm ảnh nhận được cường độ cao nhất do giao của cả 3 patch
+    \node[cell, fill=qpurple!60] at (o-2-2) {}; 
+    \node[cell, fill=qpurple!30] at (o-1-2) {};
+    \node[cell, fill=qpurple!30] at (o-2-1) {};
+  \end{scope}
+
+  \draw[flow] (pqc.east) -- (grid_out.west);
+  
+  % Gắn công thức toán học nội suy
+  \node[lbl, above=2mm of grid_out] {Cộng chồng \& Chia trung bình};
+  \node[lbl, below=2mm of grid_out, text width=5.5cm, align=center] 
+      {$F'(p)=\dfrac{1}{|\mathcal{N}(p)|}\displaystyle\sum_{s+\delta=p}Q(s)_\delta$};
+
+\end{tikzpicture}
+\end{document}

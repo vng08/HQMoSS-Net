@@ -1,0 +1,37 @@
+% Hausdorff Distance 95% (đơn vị pixel, càng thấp càng tốt) của UNet vs HQMoSS-Net
+% trên PH2 và GlaS 2015. Vẽ riêng vì thang đo (pixel) khác các chỉ số [0,1] khác.
+\documentclass[border=6pt]{standalone}
+\usepackage[utf8]{vietnam}
+\usepackage{amsmath}
+\usepackage{xcolor}
+\usepackage{pgfplots}
+\pgfplotsset{compat=1.17}
+\definecolor{cvblue}{HTML}{5B86B0}
+\definecolor{qpurple}{HTML}{7E57C2}
+\definecolor{inkdark}{HTML}{23272E}
+\begin{document}
+\begin{tikzpicture}
+\begin{axis}[
+  width=8.6cm, height=6.2cm,
+  ybar, bar width=22pt,
+  ymajorgrids, grid style={gray!22},
+  ylabel={HD95 (pixel, thấp hơn tốt hơn)},
+  tick label style={font=\sffamily\small},
+  label style={font=\sffamily\small},
+  symbolic x coords={PH2,GlaS 2015},
+  xtick=data,
+  x tick label style={font=\sffamily\small},
+  enlarge x limits=0.5,
+  nodes near coords, point meta=explicit symbolic,
+  every node near coord/.append style={font=\sffamily\scriptsize, anchor=south, text=inkdark},
+  legend style={at={(0.5,1.05)}, anchor=south, legend columns=2, font=\sffamily\scriptsize, draw=gray!40, fill=white},
+  legend cell align=left,
+  ymin=0, ymax=58,
+]
+\addplot[fill=cvblue, draw=cvblue!55!black] coordinates {(PH2,9.3508)[9.35] (GlaS 2015,49.5211)[49.52]};
+\addlegendentry{U-Net}
+\addplot[fill=qpurple, draw=qpurple!55!black] coordinates {(PH2,7.8690)[7.87] (GlaS 2015,32.5693)[32.57]};
+\addlegendentry{HQMoSS-Net}
+\end{axis}
+\end{tikzpicture}
+\end{document}

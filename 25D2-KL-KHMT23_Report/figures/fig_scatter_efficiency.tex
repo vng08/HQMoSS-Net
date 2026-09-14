@@ -1,0 +1,92 @@
+% Hiệu quả tham số: Số tham số (log-scale, trục X) vs Soft IoU trung bình (trục Y)
+% Mỗi điểm là một mô hình, trên PH2 (trái) và GlaS 2015 (phải).
+% Số liệu 5-fold từ Bảng kết quả Chương 5. Vẽ bằng pgfplots (không lấy từ evaluate.py).
+\documentclass[border=6pt]{standalone}
+\usepackage[utf8]{vietnam}
+\usepackage{amsmath}
+\usepackage{xcolor}
+\usepackage{pgfplots}
+\pgfplotsset{compat=1.17}
+\usepgfplotslibrary{groupplots}
+\definecolor{cvblue}{HTML}{5B86B0}
+\definecolor{qamber}{HTML}{E39A3B}
+\definecolor{qpurple}{HTML}{7E57C2}
+\definecolor{inkdark}{HTML}{23272E}
+\begin{document}
+\begin{tikzpicture}
+\begin{groupplot}[
+  group style={group size=2 by 1, horizontal sep=2.1cm},
+  width=8.6cm, height=6.8cm,
+  xmode=log,
+  log basis x={10},
+  xlabel={Số tham số (thang log)},
+  ymajorgrids, xmajorgrids, grid style={gray!22},
+  tick label style={font=\sffamily\small},
+  label style={font=\sffamily\small},
+  title style={font=\sffamily\bfseries},
+  nodes near coords, point meta=explicit symbolic,
+  every node near coord/.append style={font=\sffamily\tiny, anchor=west, text=inkdark, xshift=2pt},
+  scatter/classes={
+    a={mark=o,draw=cvblue,fill=cvblue,mark size=2.4pt},
+    b={mark=square*,draw=qamber!70!black,fill=qamber,mark size=2.4pt},
+    c={mark=star,draw=qpurple!70!black,fill=qpurple,mark size=3.6pt}
+  },
+]
+\nextgroupplot[title={PH2}, ylabel={Soft IoU trung bình}, ymin=0.75, ymax=0.875, xmin=7e4, xmax=3e6]
+\addplot[scatter, only marks, scatter src=explicit symbolic]
+  table[meta=label] {
+x y label
+88209 0.7787 a
+637509 0.7928 a
+644263 0.7923 a
+1110933 0.7879 a
+1873581 0.8058 a
+};
+\addplot[scatter, only marks, scatter src=explicit symbolic]
+  table[meta=label] {
+x y label
+84149 0.7942 b
+};
+\addplot[scatter, only marks, scatter src=explicit symbolic]
+  table[meta=label] {
+x y label
+153660 0.8497 c
+};
+\node[font=\sffamily\tiny, anchor=west, xshift=2pt] at (axis cs:88209,0.7787) {UNet};
+\node[font=\sffamily\tiny, anchor=west, xshift=2pt] at (axis cs:637509,0.7928) {UNet++};
+\node[font=\sffamily\tiny, anchor=north west, xshift=2pt] at (axis cs:644263,0.7923) {Att-UNet};
+\node[font=\sffamily\tiny, anchor=west, xshift=2pt] at (axis cs:1110933,0.7879) {VNet};
+\node[font=\sffamily\tiny, anchor=west, xshift=2pt] at (axis cs:1873581,0.8058) {R2U-Net};
+\node[font=\sffamily\tiny, anchor=south west, xshift=2pt] at (axis cs:84149,0.7942) {QuNet};
+\node[font=\sffamily\bfseries\tiny, anchor=west, xshift=3pt] at (axis cs:153660,0.8497) {HQMoSS-Net};
+
+\nextgroupplot[title={GlaS 2015}, ymin=0.55, ymax=0.735, xmin=7e4, xmax=3e6]
+\addplot[scatter, only marks, scatter src=explicit symbolic]
+  table[meta=label] {
+x y label
+88209 0.5851 a
+637509 0.6567 a
+644263 0.6689 a
+1110933 0.6187 a
+1873581 0.6445 a
+};
+\addplot[scatter, only marks, scatter src=explicit symbolic]
+  table[meta=label] {
+x y label
+84149 0.6171 b
+};
+\addplot[scatter, only marks, scatter src=explicit symbolic]
+  table[meta=label] {
+x y label
+153660 0.7038 c
+};
+\node[font=\sffamily\tiny, anchor=west, xshift=2pt] at (axis cs:88209,0.5851) {UNet};
+\node[font=\sffamily\tiny, anchor=west, xshift=2pt] at (axis cs:637509,0.6567) {UNet++};
+\node[font=\sffamily\tiny, anchor=north west, xshift=2pt] at (axis cs:644263,0.6689) {Att-UNet};
+\node[font=\sffamily\tiny, anchor=west, xshift=2pt] at (axis cs:1110933,0.6187) {VNet};
+\node[font=\sffamily\tiny, anchor=west, xshift=2pt] at (axis cs:1873581,0.6445) {R2U-Net};
+\node[font=\sffamily\tiny, anchor=south west, xshift=2pt] at (axis cs:84149,0.6171) {QuNet};
+\node[font=\sffamily\bfseries\tiny, anchor=west, xshift=3pt] at (axis cs:153660,0.7038) {HQMoSS-Net};
+\end{groupplot}
+\end{tikzpicture}
+\end{document}

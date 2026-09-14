@@ -1,0 +1,126 @@
+\chapter*{Bảng thuật ngữ và viết tắt}
+\label{glossary}
+
+% Trong phần đầu (front matter) chưa có số chương, nên đánh số bảng dạng 1, 2, ...
+% (khớp với "Danh sách bảng"). Khôi phục lại kiểu đánh số theo chương ở cuối file.
+\renewcommand{\thetable}{\arabic{table}}
+\setcounter{table}{0}
+
+\renewcommand{\arraystretch}{1.3}
+
+\setlength{\LTpost}{0pt}
+\setlength{\LTpre}{0pt}
+
+\begin{center}
+\begin{longtable}{|p{2.4cm}|p{5.4cm}|p{5.4cm}|}
+\caption{Bảng giải thích các từ viết tắt} \label{tab:abbr} \\
+\hline
+\textbf{Từ viết tắt} & \textbf{Ý nghĩa tiếng Anh} & \textbf{Ý nghĩa tiếng Việt} \\
+\hline
+\endfirsthead
+
+\hline
+\textbf{Từ viết tắt} & \textbf{Ý nghĩa tiếng Anh} & \textbf{Ý nghĩa tiếng Việt} \\
+\hline
+\endhead
+
+\hline
+\endfoot
+
+\hline
+\endlastfoot
+
+AI & Artificial Intelligence & Trí tuệ nhân tạo \\ \hline
+AUC & Area Under the Curve & Diện tích dưới đường cong (chỉ số Deletion/Insertion AUC) \\ \hline
+BCE & Binary Cross-Entropy & Hàm mất mát entropy chéo nhị phân \\ \hline
+CAM & Class Activation Mapping & Bản đồ kích hoạt lớp (nền tảng của Grad-CAM/Seg-Grad-CAM) \\ \hline
+CI & Confidence Interval & Khoảng tin cậy (kiểm định thống kê bootstrap, mục~\ref{subsec:stat_test}) \\ \hline
+CNN & Convolutional Neural Network & Mạng nơ-ron tích chập \\ \hline
+CNOT & Controlled-NOT Gate & Cổng NOT có điều khiển \\ \hline
+CV & Coefficient of Variation & Hệ số biến thiên (đo mức mất cân bằng tỷ trọng giữa các nhánh xử lý của router, không phải kiểm định chéo) \\ \hline
+DL & Deep Learning & Học sâu \\ \hline
+DSC & Dice Similarity Coefficient & Hệ số tương đồng Dice \\ \hline
+EPG & Energy Pointing Game & Tỷ lệ năng lượng CAM rơi vào vùng ground-truth (chỉ số không cần ngưỡng nhị phân hóa) \\ \hline
+GlaS & Gland Segmentation Challenge & Thách thức phân đoạn tuyến (MICCAI 2015) \\ \hline
+GPU & Graphics Processing Unit & Bộ xử lý đồ họa \\ \hline
+Grad-CAM & Gradient-weighted Class Activation Mapping & Bản đồ kích hoạt lớp theo trọng số gradient \\ \hline
+HD95 & Hausdorff Distance (phân vị 95\%) & Khoảng cách biên đối xứng, lấy phân vị 95 để loại điểm ngoại lai \\ \hline
+HQCNN & Hybrid Quantum-Classical Neural Network & Mạng nơ-ron lai lượng tử -- cổ điển \\ \hline
+HQMoSS-Net & Hybrid Quantum Multi-Scale MoE \& Selective-Scan Network & Mạng U-Net lai lượng tử -- cổ điển (đề xuất) \\ \hline
+IoU & Intersection over Union & Tỷ lệ giao trên hợp (chỉ số Jaccard) \\ \hline
+LSS & Lightweight Selective Scan & Khối quét chọn lọc nhẹ kiểu Mamba (đề xuất) \\ \hline
+ML & Machine Learning & Học máy \\ \hline
+MoE & Mixture of Experts & Cơ chế hỗn hợp nhánh chuyên biệt \\ \hline
+NISQ & Noisy Intermediate-Scale Quantum & Máy tính lượng tử quy mô trung bình có nhiễu \\ \hline
+PH2 & PH2 Dataset & Tập dữ liệu ảnh tổn thương da (dermoscopy) dùng trong khóa luận \\ \hline
+PQC & Parameterized Quantum Circuit & Mạch lượng tử tham số hóa \\ \hline
+QML & Quantum Machine Learning & Học máy lượng tử \\ \hline
+Quantum\-MoE & Quantum Mixture of Experts & Hỗn hợp nhánh xử lý lượng tử (đề xuất) \\ \hline
+QuFeX & Quantum Feature Extraction Module & Khối trích xuất đặc trưng lượng tử \\ \hline
+RDMS & Residual Dilated Multi-Scale & Khối tích chập đa tỷ lệ có phần dư (đề xuất) \\ \hline
+ReLU & Rectified Linear Unit & Đơn vị tuyến tính chỉnh lưu \\ \hline
+Seg-Grad-CAM & Segmentation Grad-CAM & Grad-CAM cho bài toán phân đoạn \\ \hline
+SSM & State Space Model & Mô hình không gian trạng thái \\ \hline
+XAI & Explainable Artificial Intelligence & Trí tuệ nhân tạo có khả năng giải thích \\ \hline
+
+\end{longtable}
+\end{center}
+
+\vspace{0.5cm}
+
+\setlength{\LTpost}{0pt}
+\setlength{\LTpre}{0pt}
+
+\begin{center}
+\begin{longtable}{|p{3.6cm}|p{11.4cm}|}
+\caption{Bảng giải thích các thuật ngữ} \label{tab:terms} \\
+\hline
+\textbf{Thuật ngữ} & \textbf{Ý nghĩa} \\
+\hline
+\endfirsthead
+
+\hline
+\textbf{Thuật ngữ} & \textbf{Ý nghĩa} \\
+\hline
+\endhead
+
+\hline
+\endfoot
+
+\hline
+\endlastfoot
+
+Amplitude Embedding & Mã hóa biên độ: kỹ thuật nén $2^n$ giá trị đặc trưng cổ điển vào biên độ xác suất của $n$ qubit. \\ \hline
+Angle Encoding & Mã hóa góc: kỹ thuật mã hóa mỗi đặc trưng vào góc quay của một cổng lượng tử. \\ \hline
+Ansatz & Cấu trúc mạch lượng tử tham số hóa được thiết kế sẵn để huấn luyện và tối ưu hóa mô hình lượng tử. \\ \hline
+Backbone & Bộ khung mạng nơ-ron cổ điển đóng vai trò nền tảng của kiến trúc (ở đây là U-Net). \\ \hline
+Barren Plateau & Hiện tượng ``cao nguyên cằn cỗi'': gradient của hàm mất mát triệt tiêu gần như bằng 0 trên phần lớn không gian tham số, khiến mạch lượng tử rất khó huấn luyện. \\ \hline
+Bottleneck & Nút thắt cổ chai: vùng có độ phân giải không gian thấp nhất nhưng ngữ nghĩa cao nhất, nối giữa nhánh mã hóa và giải mã của U-Net. \\ \hline
+Data Encoding & Mã hóa dữ liệu: quá trình chuyển dữ liệu cổ điển thành trạng thái lượng tử. \\ \hline
+Decoder & Nhánh giải mã: khôi phục dần độ phân giải không gian để tạo ra bản đồ phân đoạn. \\ \hline
+Dilated Convolution & Tích chập giãn nở: tích chập chèn khoảng trống vào bộ lọc để mở rộng trường nhìn mà không tăng số tham số. \\ \hline
+Overlap-add & Kỹ thuật tái tổ hợp: cộng dồn các mảnh ảnh chồng lấn rồi chia số lần phủ để dựng lại bản đồ đặc trưng liền mạch. \\ \hline
+Receptive Field & Trường nhìn: vùng không gian đầu vào ảnh hưởng tới một điểm ảnh đầu ra của một lớp mạng. \\ \hline
+Seg-Grad-CAM & Kỹ thuật diễn giải sinh bản đồ nhiệt vùng chú ý của mô hình phân đoạn dựa trên gradient. \\ \hline
+Encoder & Nhánh mã hóa: trích xuất đặc trưng ngữ nghĩa và giảm dần độ phân giải không gian của ảnh. \\ \hline
+Entanglement & Vướng víu lượng tử: hiện tượng trạng thái của nhiều qubit phụ thuộc lẫn nhau và không thể mô tả độc lập từng qubit. \\ \hline
+Expert Collapse & Sụp đổ nhánh xử lý: hiện tượng mạng định tuyến chỉ thiên vị một vài nhánh xử lý, khiến các nhánh xử lý còn lại bị bỏ không. \\ \hline
+Feature Map & Bản đồ đặc trưng: tensor biểu diễn các đặc trưng do một lớp mạng trích xuất được. \\ \hline
+Hybrid Model & Mô hình lai: mô hình kết hợp có chủ đích ít nhất hai phương pháp khác bản chất (ở đây là học sâu cổ điển và tính toán lượng tử). \\ \hline
+Không gian Hilbert & Không gian vector phức nhiều chiều dùng để biểu diễn trạng thái của hệ lượng tử. \\ \hline
+Measurement & Phép đo lượng tử: quá trình quan sát trạng thái lượng tử để thu về giá trị cổ điển, làm sụp đổ trạng thái chồng chất. \\ \hline
+Overfitting & Quá khớp: hiện tượng mô hình học quá sát dữ liệu huấn luyện và giảm khả năng tổng quát hóa trên dữ liệu mới. \\ \hline
+Qubit & Đơn vị thông tin cơ bản của máy tính lượng tử, có thể tồn tại ở trạng thái chồng chất của 0 và 1. \\ \hline
+Mamba & Kiến trúc mô hình hóa chuỗi dựa trên mô hình không gian trạng thái với cơ chế quét chọn lọc, đạt độ phức tạp tuyến tính theo chiều dài chuỗi. \\ \hline
+Router & Mạng định tuyến: thành phần đánh giá đầu vào và phân bổ trọng số cho các nhánh xử lý trong cơ chế MoE. \\ \hline
+Selective Scan & Quét chọn lọc: cơ chế của Mamba cho phép các tham số phụ thuộc đầu vào để chọn lọc thông tin cần ghi nhớ vào trạng thái ẩn. \\ \hline
+Skip Connection & Kết nối tắt: đường truyền trực tiếp đặc trưng từ nhánh mã hóa sang nhánh giải mã nhằm bảo tồn thông tin không gian. \\ \hline
+State Space Model & Mô hình không gian trạng thái: mô hình chuỗi ánh xạ đầu vào sang đầu ra qua một trạng thái ẩn theo hệ động học tuyến tính. \\ \hline
+Superposition & Chồng chất lượng tử: khả năng một qubit đồng thời tồn tại ở tổ hợp tuyến tính của các trạng thái cơ sở. \\ \hline
+
+\end{longtable}
+\end{center}
+
+% Khôi phục kiểu đánh số bảng theo chương cho phần nội dung chính.
+\renewcommand{\thetable}{\thechapter.\arabic{table}}
+\setcounter{table}{0}

@@ -1,0 +1,18 @@
+% Hình: Sơ đồ mạch lượng tử tham số hoá mẫu / ansatz PQCExpert (Mục 3.4.4)
+% Gói: quantikz (chuyên cho mạch lượng tử)
+\documentclass[border=6pt]{standalone}
+\usepackage[utf8]{vietnam}
+\usepackage{amsmath,amssymb}
+\usepackage{xcolor}
+\usepackage{tikz}
+\usepackage{quantikz}
+\definecolor{qpurple}{HTML}{7E57C2}
+\definecolor{inkdark}{HTML}{23272E}
+\begin{document}
+\begin{quantikz}[column sep=7pt, row sep=12pt]
+  \lstick{$|0\rangle$} & \gate{H} & \gate{R(\vec\theta_0)} & \ctrl{1} & \qw      & \qw      & \targ{}  & \gate{R_x} & \qw \\
+  \lstick{$|0\rangle$} & \gate{H} & \gate{R(\vec\theta_1)} & \targ{}  & \ctrl{1} & \qw      & \qw      & \gate{R_y} & \qw \\
+  \lstick{$|0\rangle$} & \gate{H} & \gate{R(\vec\theta_2)} & \qw      & \targ{}  & \ctrl{1} & \qw      & \qw        & \qw \\
+  \lstick{$|0\rangle$} & \gate{H} & \gate{R(\vec\theta_3)} & \qw      & \qw      & \targ{}  & \ctrl{-3}& \gate{R_x} & \meter{}
+\end{quantikz}
+\end{document}

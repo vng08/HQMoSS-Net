@@ -1,0 +1,33 @@
+\chapter{Kết luận và hướng phát triển}
+\label{Chapter6}
+
+\textit{Chương này tổng kết những kết quả và đóng góp chính của khóa luận, thảo luận các hạn chế còn tồn tại, và đề xuất những hướng phát triển tiếp theo cho mô hình lai lượng tử -- cổ điển trong bài toán phân đoạn ảnh y sinh.}
+
+\section{Kết luận}
+Khóa luận đã nghiên cứu, thiết kế và triển khai HQMoSS-Net -- một mạng nơ-ron lai lượng tử -- cổ điển trên nền U-Net cho bài toán phân đoạn ảnh y sinh. Thông qua việc giữ nguyên kiến trúc xương sống U-Net và nhúng các khối tính toán chuyên biệt vào vùng nút thắt cổ chai, kết hợp củng cố bộ khung cổ điển bằng khối tích chập đa tỷ lệ, khóa luận đã hiện thực hóa và khảo sát tính khả thi của việc kết hợp học máy lượng tử với mô hình hóa chuỗi hiệu quả cho một bài toán thị giác máy tính phức tạp. Các kết quả thực nghiệm định lượng bước đầu cho thấy giá trị của hướng tiếp cận này.
+
+\subsection{Đánh giá mức độ hoàn thành các đóng góp}
+Nhìn lại ba đóng góp đã đề ra ở Chương~\ref{Chapter1}, khóa luận đã hoàn thành cả ba. Điểm cần nhấn mạnh là các đóng góp này không tách rời mà bổ trợ nhau: một kiến trúc mới (đóng góp 1) hiện thực hóa một cơ chế mới (đóng góp 2), được kiểm chứng giá trị bằng một quy trình đánh giá chặt chẽ (đóng góp 3).
+\begin{itemize}
+    \item \textbf{Đề xuất kiến trúc HQMoSS-Net (Đã hoàn thành):} Khóa luận đã xây dựng thành công kiến trúc lai kết hợp khối Quantum Mixture of Experts đa tỷ lệ, khối Lightweight Selective Scan (LSS) tại nút thắt cổ chai và khối tích chập đa tỷ lệ RDMS ở bộ khung cổ điển, huấn luyện được đầu-cuối. \emph{Ý nghĩa:} đây là một minh chứng cho thấy ba cơ chế vốn phát triển độc lập -- nhiều nhánh xử lý lượng tử, mô hình hóa chuỗi lấy cảm hứng từ Mamba, và tích chập đa tỷ lệ -- có thể phối hợp cộng hưởng trong một kiến trúc phân đoạn duy nhất, gợi mở một hướng thiết kế mô hình lai đáng để tiếp tục khảo sát.
+    \item \textbf{Thiết kế cơ chế QuantumMoE đa tỷ lệ (Đã hoàn thành):} Cơ chế được triển khai với ba nhánh xử lý mảnh ảnh $2 \times 2$, $2 \times 4$, $8 \times 8$ trên một ansatz dùng chung, mạng định tuyến Softmax và kết nối residual, chỉ với khoảng $320$ tham số lượng tử. \emph{Ý nghĩa:} phân tích bóc tách cho thấy khối này đóng góp dương và cộng hưởng với thành phần cổ điển, gợi ý rằng biểu diễn lượng tử có thể mang lại giá trị \emph{về chất} chứ không chỉ nhờ tăng số tham số -- một tín hiệu tích cực cho tính hữu ích của QML trong bài toán này.
+    \item \textbf{Đánh giá thực nghiệm có hệ thống (Đã hoàn thành):} Khung kiểm định chéo $5$-fold trên PH2 và GlaS 2015 với bộ tám độ đo cùng phân tích bóc tách đầy đủ đã hoàn tất. HQMoSS-Net đạt Soft IoU $0.8497$ trên PH2 và $0.7038$ trên GlaS 2015, cao hơn U-Net, UNet++, Attention U-Net, V-Net và R2U-Net -- kể cả những mô hình lớn hơn hàng chục lần -- và ổn định hơn qua các fold. \emph{Ý nghĩa:} kết quả này cung cấp thêm bằng chứng định lượng cho hướng tiếp cận này, đặc biệt trên tập GlaS khó nơi khoảng cách càng nới rộng. Đối chứng thêm với một khối Classical MoE cùng kiến trúc (mục~\ref{subsec:cmoe_vs_qumoe}) cho một tín hiệu khiêm tốn củng cố rằng lợi ích không chỉ đến từ cấu trúc, dù đây mới là một phép đối chứng đơn lẻ. Bên cạnh đó, bước trực quan hóa bằng Seg-Grad-CAM minh họa thêm rằng mô hình tập trung khá đúng vào vùng tổn thương.
+\end{itemize}
+
+\section{Hạn chế của đề tài}
+Mặc dù đạt được những kết quả đáng khích lệ, nghiên cứu này vẫn tồn tại một số hạn chế nhất định:
+\begin{enumerate}
+    \item \textbf{Khối lượng tính toán giả lập (Simulation Overhead):} Việc giả lập tính toán lượng tử bằng máy tính truyền thống (sử dụng PennyLane) đòi hỏi lượng tài nguyên lớn và thời gian huấn luyện dài, gây giới hạn số lượng qubit tối đa và số chiều không gian đặc trưng có thể mở rộng. Đây là lý do khối lượng tử được đặt tại tầng bottleneck độ phân giải thấp.
+    \item \textbf{Giới hạn về quy mô và loại dữ liệu:} Nghiên cứu mới dừng ở phân đoạn nhị phân 2D trên hai tập dữ liệu quy mô vừa và nhỏ, chưa mở rộng sang phân đoạn đa lớp hay dữ liệu khối 3D.
+    \item \textbf{Giới hạn phần cứng lượng tử:} Nghiên cứu hiện chỉ dừng ở mức kiểm chứng trên môi trường giả lập, chưa thể đánh giá được các ảnh hưởng của nhiễu lượng tử (quantum noise) hay rào cản đo lường khi chạy trên phần cứng NISQ thực tế.
+\end{enumerate}
+
+\section{Hướng phát triển trong tương lai}
+Từ những kết quả và hạn chế trên, một số hướng nghiên cứu tiếp theo có thể được mở rộng:
+\begin{itemize}
+    \item \textbf{Triển khai trên phần cứng lượng tử thực (Real Quantum Hardware):} Thử nghiệm mô hình trên các máy tính lượng tử thực tế của IBM Q hay IonQ để đánh giá tính khả thi và tác động của nhiễu vật lý, kèm các kỹ thuật giảm nhiễu (error mitigation).
+    \item \textbf{Mở rộng bài toán (Multi-class và 3D Segmentation):} Nâng cấp mô hình để xử lý phân đoạn đa lớp hoặc ứng dụng thẳng vào dữ liệu ảnh khối 3D (ví dụ: MRI, CT) -- nơi không gian Hilbert lượng tử có thể phát huy tối đa sức mạnh biểu diễn dữ liệu không gian nhiều chiều.
+    \item \textbf{Tối ưu chi phí mô phỏng và mở rộng cơ chế MoE:} Nghiên cứu định tuyến thưa (sparse/top-$k$ routing) để chỉ kích hoạt một phần nhánh xử lý, giảm chi phí mô phỏng; đồng thời khảo sát thêm nhánh xử lý ở nhiều tỷ lệ hơn hoặc ansatz đa dạng hơn.
+    \item \textbf{Phân tích sâu hơn hành vi mô hình:} Mục~\ref{sec:router_balance} đã đo lường cân bằng định tuyến trên một checkpoint đại diện (fold 1); hướng mở rộng là lặp lại phân tích này trên cả năm fold để đánh giá độ ổn định của chiến lược định tuyến qua nhiều lần huấn luyện, đồng thời trực quan hóa không gian (heatmap) vùng ảnh mà mỗi nhánh được ưu tiên, nhằm hiểu rõ hơn vì sao router phân bổ như vậy theo từng vị trí cụ thể.
+    \item \textbf{Đối chứng cổ điển toàn diện hơn:} Mục~\ref{subsec:cmoe_vs_qumoe} mới thử một cấu hình Classical MoE duy nhất; hướng mở rộng là khảo sát thêm các biện pháp giảm quá khớp (dropout, weight decay, giảm hidden dim) và quét nhiều mức dung lượng tham số, nhằm xác định rõ hơn giới hạn cải thiện của khối cổ điển so với QuantumMoE.
+\end{itemize}

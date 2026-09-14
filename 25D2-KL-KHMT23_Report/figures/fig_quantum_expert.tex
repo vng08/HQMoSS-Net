@@ -1,0 +1,48 @@
+% Hình: Luồng xử lý một nhánh xử lý lượng tử QuantumExpert (Mục 4.4, Thuật toán 1)
+\documentclass[border=6pt]{standalone}
+\usepackage[utf8]{vietnam}
+\usepackage{amsmath,amssymb}
+\usepackage{xcolor}
+\usepackage{tikz}
+\usetikzlibrary{positioning,fit,arrows.meta,calc,backgrounds}
+\definecolor{cvblue}{HTML}{35618E}\definecolor{cvbluefill}{HTML}{DCE7F2}
+\definecolor{qpurple}{HTML}{7E57C2}\definecolor{qfill}{HTML}{ECE3F7}
+\definecolor{slate}{HTML}{5B6470}\definecolor{slatefill}{HTML}{EDEFF2}
+\definecolor{inkdark}{HTML}{23272E}
+\tikzset{
+  >={Stealth[length=2.4mm]},
+  every node/.style={font=\sffamily\footnotesize, text=inkdark},
+  cls/.style={draw=cvblue, fill=cvbluefill, rounded corners=2pt, thick, align=center, minimum height=9mm, minimum width=20mm},
+  qtm/.style={draw=qpurple, fill=qfill, rounded corners=2pt, thick, align=center, minimum height=9mm, minimum width=22mm},
+  io/.style={draw=slate, rounded corners=2pt, thick, align=center, minimum height=9mm, minimum width=17mm},
+  flow/.style={-{Stealth[length=2.4mm]}, line width=0.9pt, draw=inkdark},
+  lbl/.style={font=\sffamily\scriptsize, text=slate},
+}
+\begin{document}
+\begin{tikzpicture}[node distance=6mm]
+  \node[io] (in) {$F$\\ \scriptsize $H{\times}W{\times}C$};
+  \node[cls, right=of in] (patch) {Trích patch\\ (stride $1$)};
+  \node[cls, right=of patch] (ln1) {LayerNorm};
+  \node[qtm, right=of ln1] (amp) {Amplitude\\ embed};
+  \node[qtm, right=of amp] (pqc) {PQC\\ ($L{=}5$)};
+  % hàng 2
+  \node[qtm, below=9mm of pqc] (probs) {$\mathrm{probs}$\\ $2^n$ chiều};
+  \node[cls, left=of probs] (ln2) {LayerNorm};
+  \node[cls, left=of ln2] (oadd) {Overlap-add\\ (trung bình)};
+  \node[io, left=of oadd] (out) {$F'$\\ \scriptsize $H{\times}W{\times}C$};
+
+  \draw[flow] (in) -- (patch);
+  \draw[flow] (patch) -- (ln1);
+  \draw[flow] (ln1) -- (amp);
+  \draw[flow] (amp) -- (pqc);
+  \draw[flow] (pqc.south) -- (probs.north);
+  \draw[flow] (probs) -- (ln2);
+  \draw[flow] (ln2) -- (oadd);
+  \draw[flow] (oadd) -- (out);
+
+  % khung nhóm phần lượng tử
+  \begin{scope}[on background layer]
+    \node[draw=qpurple, dashed, rounded corners=3pt, inner sep=3mm, fit=(amp)(pqc)(probs), label={[lbl,text=qpurple]above:mạch lượng tử (khả vi)}] {};
+  \end{scope}
+\end{tikzpicture}
+\end{document}

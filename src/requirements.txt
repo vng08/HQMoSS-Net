@@ -1,0 +1,33 @@
+# ---------------------------------------------------------------------------
+# Thư viện cần thiết cho HQMoSS-Net (khớp phiên bản đã dùng trên Kaggle).
+# Cài bằng: pip install -r requirements.txt
+# ---------------------------------------------------------------------------
+
+# Nền tảng học sâu (dùng Keras legacy để tương thích qml.qnn.KerasLayer)
+tensorflow==2.19.0
+tf-keras==2.19.0
+
+# PennyLane + phụ thuộc cho mô-đun lượng tử (Quantum MoE)
+pennylane==0.41.1
+pennylane-lightning==0.41.1
+jax==0.4.28
+jaxlib==0.4.28
+autoray==0.7.2
+autograd==1.7.0
+appdirs==1.4.4
+semantic-version==2.10.0
+tomlkit==0.13.2
+rustworkx==0.16.0
+diastatic-malt==2.15.2
+
+# Các mô hình baseline U-Net (UNet++, Attention U-Net, R2U-Net, VNet, ...)
+keras-unet-collection
+
+# Khoa học dữ liệu / tiện ích
+numpy
+pandas
+scipy
+scikit-learn
+matplotlib
+seaborn
+silence-tensorflow

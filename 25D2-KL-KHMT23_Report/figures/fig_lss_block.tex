@@ -1,0 +1,52 @@
+% Hình: Khối LSS - Lightweight Selective Scan tại bottleneck (Mục 4.6)
+\documentclass[border=6pt]{standalone}
+\usepackage[utf8]{vietnam}
+\usepackage{amsmath,amssymb}
+\usepackage{xcolor}
+\usepackage{tikz}
+\usetikzlibrary{positioning,fit,arrows.meta,calc,backgrounds}
+\definecolor{lssorange}{HTML}{CF8A2A}\definecolor{lssfill}{HTML}{FBE7C6}
+\definecolor{cvblue}{HTML}{35618E}\definecolor{cvbluefill}{HTML}{DCE7F2}
+\definecolor{slate}{HTML}{5B6470}\definecolor{slatefill}{HTML}{EDEFF2}
+\definecolor{inkdark}{HTML}{23272E}
+\tikzset{
+  >={Stealth[length=2.4mm]},
+  every node/.style={font=\sffamily\footnotesize, text=inkdark},
+  blk/.style={draw=lssorange, fill=lssfill, rounded corners=2pt, thick, align=center, minimum height=8mm, minimum width=20mm},
+  scan/.style={draw=cvblue, fill=cvbluefill, rounded corners=2pt, thick, align=center, minimum height=9mm, minimum width=30mm},
+  io/.style={draw=slate, rounded corners=2pt, thick, align=center, minimum height=8mm, minimum width=13mm},
+  op/.style={draw=slate, fill=slatefill, circle, thick, inner sep=1pt, minimum size=6.5mm},
+  flow/.style={-{Stealth[length=2.4mm]}, line width=0.9pt, draw=inkdark},
+  lbl/.style={font=\sffamily\scriptsize, text=slate},
+}
+\begin{document}
+\begin{tikzpicture}
+  \node[io] (x) {$x$};
+  \node[blk, right=8mm of x] (ln) {LayerNorm\\ $\to$ $1{\times}1$};
+  \node[blk, right=10mm of ln] (feat) {Conv $5{\times}5$\\ $\to$ swish};
+  \node[scan, right=10mm of feat] (scan) {Selective Scan\\ \scriptsize $h_t{=}a\odot h_{t-1}{+}b_t\odot x_t$};
+  \node[op, right=10mm of scan] (mul) {$\odot$};
+  \node[blk, right=8mm of mul] (out1) {$1{\times}1$\\ (zero-init)};
+  \node[op, right=8mm of out1] (add) {$+$};
+  \node[io, right=8mm of add] (out) {out};
+
+  % nhánh cổng
+  \node[blk, below=8mm of scan] (gate) {gate: $\sigma(\cdot)$};
+
+  \draw[flow] (x) -- (ln);
+  \draw[flow] (ln) -- node[above,lbl]{feature} (feat);
+  \draw[flow] (feat) -- (scan);
+  \draw[flow] (scan) -- (mul);
+  \draw[flow] (mul) -- (out1);
+  \draw[flow] (out1) -- (add);
+  \draw[flow] (add) -- (out);
+  % nhánh gate
+  \draw[flow] (ln.south) |- (gate.west) node[pos=0.25,left,lbl]{gate};
+  \draw[flow] (gate.east) -| (mul.south);
+  % residual
+  \draw[flow, draw=lssorange] (x.south) to[out=-90,in=-90]
+        node[below,lbl,pos=0.5]{residual} (add.south);
+  \node[lbl, below=8mm of gate, text width=8.5cm, align=center]
+        {Chiếu ra khởi tạo $0$ $\Rightarrow$ ban đầu là ánh xạ đồng nhất; chi phí tuyến tính theo số token $H{\times}W$.};
+\end{tikzpicture}
+\end{document}

@@ -1,0 +1,46 @@
+% Hình: Mạch PQCExpert của mô hình chính HQMoSS-Net (Mục 4.4)
+% Trích đúng theo code models/quantum.py: AmplitudeEmbedding -> H -> [Rot + CNOT vòng]xL -> RX/RY (i mod 3) -> probs
+% Minh hoạ cho Expert 1 (n=5). Ba nhánh xử lý dùng chung ansatz: n in {5,6,9}, L=5.
+\documentclass[border=8pt]{standalone}
+\usepackage[utf8]{vietnam}
+\usepackage{amsmath,amssymb}
+\usepackage{xcolor}
+\usepackage{tikz}
+\usetikzlibrary{fit,backgrounds,calc}
+\usepackage{quantikz}
+\definecolor{qpurple}{HTML}{7E57C2}
+\definecolor{cvblue}{HTML}{35618E}
+\definecolor{slate}{HTML}{5B6470}
+\definecolor{inkdark}{HTML}{23272E}
+\begin{document}
+\begin{tikzpicture}
+  \node[inner sep=0pt] (circ) {%
+  \begin{quantikz}[column sep=6pt, row sep=9pt, wire types={q,q,q,q,q}]
+    \lstick{$|0\rangle$} & \gate[5]{\,U_{\mathrm{emb}}(x)\,} & \gate{H} & \gate{R(\boldsymbol{\theta}_{\ell,0})} & \ctrl{1} & \qw      & \qw      & \qw      & \targ{}   & \gate{R_x} & \meter{} \\
+    \lstick{$|0\rangle$} &                                  & \gate{H} & \gate{R(\boldsymbol{\theta}_{\ell,1})} & \targ{}  & \ctrl{1} & \qw      & \qw      & \qw       & \gate{R_y} & \meter{} \\
+    \lstick{$|0\rangle$} &                                  & \gate{H} & \gate{R(\boldsymbol{\theta}_{\ell,2})} & \qw      & \targ{}  & \ctrl{1} & \qw      & \qw       & \qw        & \meter{} \\
+    \lstick{$|0\rangle$} &                                  & \gate{H} & \gate{R(\boldsymbol{\theta}_{\ell,3})} & \qw      & \qw      & \targ{}  & \ctrl{1} & \qw       & \gate{R_x} & \meter{} \\
+    \lstick{$|0\rangle$} &                                  & \gate{H} & \gate{R(\boldsymbol{\theta}_{\ell,4})} & \qw      & \qw      & \qw      & \targ{}  & \ctrl{-4} & \gate{R_y} & \meter{}
+  \end{quantikz}%
+  };
+
+  % ---- Khung "lặp L lần" quanh khối [Rot + chuỗi CNOT + CNOT vòng] ----
+  % (Vẽ đè bằng toạ độ tương đối theo bề rộng của mạch; đã canh theo cột.)
+  \coordinate (bl) at ($(circ.south west)!0.315!(circ.south east)$);
+  \coordinate (tr) at ($(circ.north west)!0.70!(circ.north east)$);
+  \draw[qpurple, dashed, thick, rounded corners=3pt]
+        ($(bl)+(0,-1.5mm)$) rectangle ($(tr)+(0,1.5mm)$);
+  \node[qpurple, font=\sffamily\footnotesize]
+        at ($(circ.north west)!0.495!(circ.north east)+(0,4.5mm)$) {Lớp PQC \ $\times\, L\ (L=5)$};
+
+  % ---- Chú thích hai đầu mạch ----
+  \node[slate, font=\sffamily\scriptsize] at ($(circ.north west)!0.135!(circ.north east)+(0,4.5mm)$) {mã hoá biên độ};
+  \node[slate, font=\sffamily\scriptsize] at ($(circ.north west)!0.965!(circ.north east)+(0,4.5mm)$) {$\mathrm{probs}$};
+
+  % ---- Ghi chú tổng quát ----
+  \node[inkdark, font=\sffamily\footnotesize, text width=15cm, align=center, below=4mm of circ.south]
+    {Minh hoạ cho \textbf{Expert 1} ($n=5$ qubit). Ba nhánh xử lý lượng tử dùng chung ansatz này,
+     chỉ khác số qubit $n\in\{5,6,9\}$ (patch $2{\times}2$, $2{\times}4$, $8{\times}8$) và cùng $L=5$ lớp;
+     CNOT tạo chuỗi tuyến tính khép vòng ($q_{n-1}\!\to\!q_0$), tầng cuối áp $R_x$ nếu $i\bmod 3=0$, $R_y$ nếu $i\bmod 3=1$.};
+\end{tikzpicture}
+\end{document}

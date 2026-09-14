@@ -1,0 +1,31 @@
+\contentsline {table}{\numberline {1}{Bảng giải thích các từ viết tắt}}{xvii}{table.0.1}%
+\contentsline {table}{\numberline {2}{Bảng giải thích các thuật ngữ}}{xx}{table.0.2}%
+\addvspace {10\p@ }
+\addvspace {10\p@ }
+\addvspace {10\p@ }
+\addvspace {10\p@ }
+\contentsline {table}{\numberline {4.1}{\ignorespaces Cấu hình ba nhánh xử lý lượng tử trong QuantumMoE (bottleneck $6\times 8$)}}{65}{table.4.1}%
+\contentsline {table}{\numberline {4.2}{\ignorespaces Tám cấu hình thực nghiệm của họ mô hình sinh từ ba công tắc RDMS/QuMoE/LSS}}{71}{table.4.2}%
+\contentsline {table}{\numberline {4.3}{\ignorespaces Số tham số của HQMoSS-Net và các mô hình so sánh}}{74}{table.4.3}%
+\contentsline {table}{\numberline {4.4}{\ignorespaces Liên hệ giữa lựa chọn thiết kế, lý do kỳ vọng và kết quả thực nghiệm}}{78}{table.4.4}%
+\addvspace {10\p@ }
+\contentsline {table}{\numberline {5.1}{\ignorespaces Tổng hợp đặc điểm các tập dữ liệu thực nghiệm}}{81}{table.5.1}%
+\contentsline {table}{\numberline {5.2}{\ignorespaces Cấu hình siêu tham số huấn luyện}}{82}{table.5.2}%
+\contentsline {table}{\numberline {5.3}{\ignorespaces Kết quả trên PH2 -- các độ đo chồng lấp (trung bình $\pm $ độ lệch chuẩn, $5$-fold). Giá trị tốt nhất in đậm.}}{85}{table.5.3}%
+\contentsline {table}{\numberline {5.4}{\ignorespaces Kết quả trên PH2 -- các độ đo phân loại điểm ảnh (trung bình $\pm $ độ lệch chuẩn, $5$-fold).}}{85}{table.5.4}%
+\contentsline {table}{\numberline {5.5}{\ignorespaces Kết quả trên GlaS 2015 -- các độ đo chồng lấp (trung bình $\pm $ độ lệch chuẩn, $5$-fold). Giá trị tốt nhất in đậm.}}{86}{table.5.5}%
+\contentsline {table}{\numberline {5.6}{\ignorespaces Kết quả trên GlaS 2015 -- các độ đo phân loại điểm ảnh (trung bình $\pm $ độ lệch chuẩn, $5$-fold).}}{86}{table.5.6}%
+\contentsline {table}{\numberline {5.7}{\ignorespaces Bóc tách thành phần trên PH2: tám cấu hình thực nghiệm sinh từ ba công tắc, kèm mô hình tham chiếu lượng tử QuNet (QuFeX) (trung bình $\pm $ độ lệch chuẩn, $5$-fold).}}{89}{table.5.7}%
+\contentsline {table}{\numberline {5.8}{\ignorespaces Mức cải thiện Soft IoU so với U-Net gốc trên PH2}}{89}{table.5.8}%
+\contentsline {table}{\numberline {5.9}{\ignorespaces Ảnh hưởng của số lớp mạch mỗi nhánh xử lý (QuMoE, PH2, $5$-fold).}}{90}{table.5.9}%
+\contentsline {table}{\numberline {5.10}{\ignorespaces Đối chứng cổ điển: QuantumMoE$(5,5,5)$ so với Classical MoE cùng kiến trúc -- các độ đo chồng lấp (PH2, $5$-fold, trung bình $\pm $ độ lệch chuẩn).}}{92}{table.5.10}%
+\contentsline {table}{\numberline {5.11}{\ignorespaces Đối chứng cổ điển: QuantumMoE$(5,5,5)$ so với Classical MoE cùng kiến trúc -- các độ đo phân loại điểm ảnh (PH2, $5$-fold, trung bình $\pm $ độ lệch chuẩn).}}{92}{table.5.11}%
+\contentsline {table}{\numberline {5.12}{\ignorespaces Kiểm định HQMoSS-Net vs.\ baseline kiến trúc (Soft IoU pooled, $K=5$). IoU HQMoSS-Net: $0.850$ (PH2), $0.704$ (GlaS). Sắp theo $p$ tăng dần.}}{95}{table.5.12}%
+\contentsline {table}{\numberline {5.13}{\ignorespaces Kiểm định HQMoSS-Net (đầy đủ) vs.\ các cấu hình bóc tách trên PH2 (Soft IoU pooled, $K=5$). IoU HQMoSS-Net: $0.850$. Sắp theo $p$ tăng dần.}}{95}{table.5.13}%
+\contentsline {table}{\numberline {5.14}{\ignorespaces Meta-analysis Stouffer's Z gộp bằng chứng PH2 $+$ GlaS (baseline kiến trúc chung cả hai bộ). Sắp theo $p_{\text {gộp}}$ tăng dần.}}{96}{table.5.14}%
+\contentsline {table}{\numberline {5.15}{\ignorespaces Cân bằng định tuyến của router QuantumMoE trên PH2 và GlaS 2015 (fold 1).}}{98}{table.5.15}%
+\contentsline {table}{\numberline {5.16}{\ignorespaces Kiểm định Mann-Whitney U so sánh tỷ trọng mỗi nhánh giữa PH2 và GlaS 2015 (theo từng ảnh, fold 1).}}{99}{table.5.16}%
+\contentsline {table}{\numberline {5.17}{\ignorespaces Đặc tính cấu trúc nhãn và phương pháp hậu xử lý CAM theo từng bộ dữ liệu.}}{101}{table.5.17}%
+\contentsline {table}{\numberline {5.18}{\ignorespaces Chỉ số diễn giải Seg-Grad-CAM trên PH2 (trung bình $\pm $ độ lệch chuẩn). Mũi tên $\uparrow $/$\downarrow $ chỉ chiều tốt hơn; giá trị tốt hơn in đậm.}}{102}{table.5.18}%
+\contentsline {table}{\numberline {5.19}{\ignorespaces Chỉ số diễn giải Seg-Grad-CAM trên GlaS 2015 (trung bình $\pm $ độ lệch chuẩn). Mũi tên $\uparrow $/$\downarrow $ chỉ chiều tốt hơn; giá trị tốt hơn in đậm.}}{103}{table.5.19}%
+\addvspace {10\p@ }

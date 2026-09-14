@@ -1,0 +1,126 @@
+\contentsline {chapter}{Lời cam đoan}{i}{Doc-Start}%
+\contentsline {chapter}{Thuyết minh chỉnh sửa đề tài}{ii}{chapter*.1}%
+\contentsline {chapter}{Nhận xét của giảng viên hướng dẫn}{iii}{chapter*.2}%
+\contentsline {chapter}{Nhận xét của giảng viên phản biện}{iv}{chapter*.3}%
+\contentsline {chapter}{Lời cảm ơn}{v}{chapter*.4}%
+\contentsline {chapter}{Đề cương chi tiết}{vi}{chapter*.5}%
+\contentsline {chapter}{Mục lục}{vi}{chapter*.5}%
+\contentsline {chapter}{Bảng thuật ngữ và viết tắt}{xvi}{chapter*.8}%
+\contentsline {chapter}{Tóm tắt}{xxiv}{table.0.2}%
+\contentsline {chapter}{\numberline {1}Giới thiệu}{1}{chapter.1}%
+\contentsline {section}{\numberline {1.1}Giới thiệu bài toán}{1}{section.1.1}%
+\contentsline {section}{\numberline {1.2}Động lực nghiên cứu}{2}{section.1.2}%
+\contentsline {section}{\numberline {1.3}Mục tiêu nghiên cứu}{3}{section.1.3}%
+\contentsline {section}{\numberline {1.4}Đối tượng và phạm vi nghiên cứu}{5}{section.1.4}%
+\contentsline {subsection}{\numberline {1.4.1}Đối tượng nghiên cứu}{5}{subsection.1.4.1}%
+\contentsline {subsection}{\numberline {1.4.2}Phạm vi nghiên cứu}{5}{subsection.1.4.2}%
+\contentsline {section}{\numberline {1.5}Ý nghĩa thực tiễn}{6}{section.1.5}%
+\contentsline {section}{\numberline {1.6}Đóng góp của khóa luận}{6}{section.1.6}%
+\contentsline {section}{\numberline {1.7}Cấu trúc khóa luận}{8}{section.1.7}%
+\contentsline {chapter}{\numberline {2}Các công trình liên quan}{10}{chapter.2}%
+\contentsline {section}{\numberline {2.1}Học sâu cho phân đoạn ảnh y sinh}{10}{section.2.1}%
+\contentsline {section}{\numberline {2.2}Học máy lượng tử trong xử lý ảnh y tế}{12}{section.2.2}%
+\contentsline {section}{\numberline {2.3}Mixture of Experts trong Học sâu}{14}{section.2.3}%
+\contentsline {section}{\numberline {2.4}Mô hình không gian trạng thái và Mamba}{15}{section.2.4}%
+\contentsline {section}{\numberline {2.5}Khoảng trống nghiên cứu và hướng tiếp cận của khóa luận}{16}{section.2.5}%
+\contentsline {chapter}{\numberline {3}Cơ sở lý thuyết}{17}{chapter.3}%
+\contentsline {section}{\numberline {3.1}Bài toán phân đoạn ảnh y tế}{17}{section.3.1}%
+\contentsline {subsection}{\numberline {3.1.1}Mô tả toán học}{17}{subsection.3.1.1}%
+\contentsline {subsection}{\numberline {3.1.2}Những thách thức đặc thù của phân đoạn ảnh y sinh}{19}{subsection.3.1.2}%
+\contentsline {subsection}{\numberline {3.1.3}Các độ đo đánh giá (Metrics)}{20}{subsection.3.1.3}%
+\contentsline {subsection}{\numberline {3.1.4}Hàm mất mát (Loss Function)}{22}{subsection.3.1.4}%
+\contentsline {subsection}{\numberline {3.1.5}Kiểm định ý nghĩa thống kê}{22}{subsection.3.1.5}%
+\contentsline {section}{\numberline {3.2}Kiến trúc U-Net}{24}{section.3.2}%
+\contentsline {subsection}{\numberline {3.2.1}Phép tích chập và tổng hợp cực đại}{24}{subsection.3.2.1}%
+\contentsline {subsection}{\numberline {3.2.2}Nhánh mã hóa và nhánh giải mã}{25}{subsection.3.2.2}%
+\contentsline {subsection}{\numberline {3.2.3}Kết nối tắt (Skip connections)}{26}{subsection.3.2.3}%
+\contentsline {subsection}{\numberline {3.2.4}Tích chập giãn nở và trường nhìn}{26}{subsection.3.2.4}%
+\contentsline {subsection}{\numberline {3.2.5}Tích chập tách kênh và học phần dư}{27}{subsection.3.2.5}%
+\contentsline {section}{\numberline {3.3}Lý thuyết tính toán lượng tử}{28}{section.3.3}%
+\contentsline {subsection}{\numberline {3.3.1}Số phức: nền tảng toán học cho biên độ lượng tử}{28}{subsection.3.3.1}%
+\contentsline {subsection}{\numberline {3.3.2}Không gian Hilbert và Qubit}{29}{subsection.3.3.2}%
+\contentsline {subsection}{\numberline {3.3.3}Cổng lượng tử (Quantum Gates)}{31}{subsection.3.3.3}%
+\contentsline {subsection}{\numberline {3.3.4}Phép đo lượng tử (Measurement)}{33}{subsection.3.3.4}%
+\contentsline {section}{\numberline {3.4}Mô hình Học máy lượng tử (QML)}{35}{section.3.4}%
+\contentsline {subsection}{\numberline {3.4.1}Mô hình lai lượng tử -- cổ điển}{35}{subsection.3.4.1}%
+\contentsline {subsection}{\numberline {3.4.2}Mã hóa dữ liệu (Data Encoding)}{35}{subsection.3.4.2}%
+\contentsline {subsection}{\numberline {3.4.3}Góc nhìn ánh xạ đặc trưng lượng tử}{37}{subsection.3.4.3}%
+\contentsline {subsection}{\numberline {3.4.4}Mạch lượng tử tham số hóa (PQC/Ansatz)}{38}{subsection.3.4.4}%
+\contentsline {subsection}{\numberline {3.4.5}Quy tắc dịch tham số (Parameter-Shift Rule)}{39}{subsection.3.4.5}%
+\contentsline {subsection}{\numberline {3.4.6}Cao nguyên cằn cỗi và chiến lược giảm thiểu}{40}{subsection.3.4.6}%
+\contentsline {subsection}{\numberline {3.4.7}Bối cảnh các hướng tiếp cận QML và lựa chọn kiến trúc lai}{41}{subsection.3.4.7}%
+\contentsline {section}{\numberline {3.5}Mixture of Experts (MoE)}{42}{section.3.5}%
+\contentsline {subsection}{\numberline {3.5.1}Kiến trúc MoE tổng quát}{42}{subsection.3.5.1}%
+\contentsline {subsection}{\numberline {3.5.2}Cơ chế định tuyến (Routing)}{43}{subsection.3.5.2}%
+\contentsline {subsection}{\numberline {3.5.3}Vấn đề sụp đổ nhánh xử lý (Expert Collapse)}{44}{subsection.3.5.3}%
+\contentsline {subsection}{\numberline {3.5.4}Đo lường và kiểm định cân bằng định tuyến}{44}{subsection.3.5.4}%
+\contentsline {section}{\numberline {3.6}Mô hình không gian trạng thái và cơ chế quét chọn lọc (Mamba)}{46}{section.3.6}%
+\contentsline {subsection}{\numberline {3.6.1}Mô hình không gian trạng thái liên tục}{46}{subsection.3.6.1}%
+\contentsline {subsection}{\numberline {3.6.2}Rời rạc hóa}{46}{subsection.3.6.2}%
+\contentsline {subsection}{\numberline {3.6.3}Cơ chế chọn lọc (Selective Scan)}{47}{subsection.3.6.3}%
+\contentsline {section}{\numberline {3.7}Trí tuệ nhân tạo khả giải thích và Seg-Grad-CAM}{49}{section.3.7}%
+\contentsline {subsection}{\numberline {3.7.1}Khái niệm, phân loại và vị trí của Seg-Grad-CAM}{49}{subsection.3.7.1}%
+\contentsline {subsection}{\numberline {3.7.2}So sánh lý thuyết một số kỹ thuật CAM dựa trên gradient}{51}{subsection.3.7.2}%
+\contentsline {subsection}{\numberline {3.7.3}Seg-Grad-CAM cho bài toán phân đoạn}{52}{subsection.3.7.3}%
+\contentsline {subsection}{\numberline {3.7.4}Diễn giải mô hình lai lượng tử -- cổ điển}{53}{subsection.3.7.4}%
+\contentsline {subsection}{\numberline {3.7.5}Các độ đo định lượng đánh giá khả năng diễn giải}{55}{subsection.3.7.5}%
+\contentsline {chapter}{\numberline {4}Phương pháp đề xuất}{57}{chapter.4}%
+\contentsline {section}{\numberline {4.1}Tổng quan kiến trúc và nguyên tắc thiết kế}{57}{section.4.1}%
+\contentsline {section}{\numberline {4.2}Phân tích và lựa chọn thành phần}{59}{section.4.2}%
+\contentsline {subsection}{\numberline {4.2.1}Lựa chọn bộ khung}{59}{subsection.4.2.1}%
+\contentsline {subsection}{\numberline {4.2.2}Lựa chọn khối tích chập đa tỷ lệ RDMS}{59}{subsection.4.2.2}%
+\contentsline {subsection}{\numberline {4.2.3}Lựa chọn cơ chế mã hóa dữ liệu}{59}{subsection.4.2.3}%
+\contentsline {subsection}{\numberline {4.2.4}Lựa chọn phương pháp đo lường}{60}{subsection.4.2.4}%
+\contentsline {subsection}{\numberline {4.2.5}Lý do bổ sung khối LSS}{60}{subsection.4.2.5}%
+\contentsline {section}{\numberline {4.3}Bộ khung cổ điển và khối RDMS}{61}{section.4.3}%
+\contentsline {section}{\numberline {4.4}Khối QuantumMoE (Quantum Mixture of Experts)}{62}{section.4.4}%
+\contentsline {subsection}{\numberline {4.4.1}Nhánh xử lý lượng tử (QuantumExpert)}{62}{subsection.4.4.1}%
+\contentsline {subsection}{\numberline {4.4.2}Mạch lượng tử tham số hóa dùng chung (PQCExpert)}{64}{subsection.4.4.2}%
+\contentsline {subsection}{\numberline {4.4.3}Ba nhánh xử lý đa tỷ lệ}{65}{subsection.4.4.3}%
+\contentsline {subsection}{\numberline {4.4.4}Tái tổ hợp overlap-add}{66}{subsection.4.4.4}%
+\contentsline {subsection}{\numberline {4.4.5}Mạng định tuyến và kết nối residual (Router)}{66}{subsection.4.4.5}%
+\contentsline {section}{\numberline {4.5}Khối LSS tại nút thắt cổ chai}{68}{section.4.5}%
+\contentsline {section}{\numberline {4.6}Kết hợp toàn bộ kiến trúc HQMoSS-Net}{69}{section.4.6}%
+\contentsline {section}{\numberline {4.7}Không gian thiết kế: tám cấu hình thực nghiệm}{70}{section.4.7}%
+\contentsline {section}{\numberline {4.8}Phân tích toán học của kiến trúc}{71}{section.4.8}%
+\contentsline {subsection}{\numberline {4.8.1}Mô hình như một ánh xạ hợp thành}{71}{subsection.4.8.1}%
+\contentsline {subsection}{\numberline {4.8.2}Vì sao mã hóa biên độ giàu biểu diễn}{72}{subsection.4.8.2}%
+\contentsline {subsection}{\numberline {4.8.3}Router như trung bình hóa lồi theo điểm ảnh}{72}{subsection.4.8.3}%
+\contentsline {subsection}{\numberline {4.8.4}LSS như bộ lọc IIR có cổng}{72}{subsection.4.8.4}%
+\contentsline {section}{\numberline {4.9}Phân tích độ phức tạp tính toán và hiệu quả tham số}{73}{section.4.9}%
+\contentsline {subsection}{\numberline {4.9.1}Số lần đánh giá mạch và độ phức tạp mô phỏng}{73}{subsection.4.9.1}%
+\contentsline {subsection}{\numberline {4.9.2}Hiệu quả tham số của thành phần lượng tử}{73}{subsection.4.9.2}%
+\contentsline {subsection}{\numberline {4.9.3}Tích hợp vi phân tự động}{74}{subsection.4.9.3}%
+\contentsline {section}{\numberline {4.10}Hàm mất mát và cấu hình tối ưu}{74}{section.4.10}%
+\contentsline {section}{\numberline {4.11}Các mô hình cơ sở và chiến lược so sánh}{75}{section.4.11}%
+\contentsline {section}{\numberline {4.12}Chiến lược diễn giải mô hình bằng Seg-Grad-CAM}{76}{section.4.12}%
+\contentsline {section}{\numberline {4.13}Tổng hợp lập luận thiết kế: vì sao mỗi lựa chọn dẫn tới kết quả}{77}{section.4.13}%
+\contentsline {chapter}{\numberline {5}Thực nghiệm và Kết quả}{80}{chapter.5}%
+\contentsline {section}{\numberline {5.1}Tập dữ liệu}{80}{section.5.1}%
+\contentsline {subsection}{\numberline {5.1.1}Tập dữ liệu PH2 (phân đoạn tổn thương da)}{80}{subsection.5.1.1}%
+\contentsline {subsection}{\numberline {5.1.2}Tập dữ liệu GlaS 2015 (phân đoạn tuyến trong mô học)}{81}{subsection.5.1.2}%
+\contentsline {section}{\numberline {5.2}Cài đặt môi trường thực nghiệm}{81}{section.5.2}%
+\contentsline {section}{\numberline {5.3}Các độ đo đánh giá}{82}{section.5.3}%
+\contentsline {section}{\numberline {5.4}Quy trình huấn luyện và đánh giá}{83}{section.5.4}%
+\contentsline {section}{\numberline {5.5}So sánh với các mô hình cơ sở}{84}{section.5.5}%
+\contentsline {subsection}{\numberline {5.5.1}Kết quả trên tập PH2}{84}{subsection.5.5.1}%
+\contentsline {subsection}{\numberline {5.5.2}Kết quả trên tập GlaS 2015}{86}{subsection.5.5.2}%
+\contentsline {section}{\numberline {5.6}Phân tích bóc tách (Ablation Study)}{88}{section.5.6}%
+\contentsline {subsection}{\numberline {5.6.1}Đóng góp của từng thành phần (RDMS, QuMoE, LSS)}{88}{subsection.5.6.1}%
+\contentsline {subsection}{\numberline {5.6.2}Ảnh hưởng của số lớp mạch lượng tử}{90}{subsection.5.6.2}%
+\contentsline {subsection}{\numberline {5.6.3}Đối chứng cổ điển: QuantumMoE so với Classical MoE}{91}{subsection.5.6.3}%
+\contentsline {section}{\numberline {5.7}Kiểm định ý nghĩa thống kê}{94}{section.5.7}%
+\contentsline {section}{\numberline {5.8}Phân tích cân bằng định tuyến (Router Load Balancing)}{97}{section.5.8}%
+\contentsline {section}{\numberline {5.9}So sánh định tính}{99}{section.5.9}%
+\contentsline {section}{\numberline {5.10}Phân tích diễn giải mô hình (Explainable AI)}{100}{section.5.10}%
+\contentsline {subsection}{\numberline {5.10.1}Phương pháp luận}{100}{subsection.5.10.1}%
+\contentsline {subsection}{\numberline {5.10.2}Kết quả định lượng khả năng diễn giải}{102}{subsection.5.10.2}%
+\contentsline {subsection}{\numberline {5.10.3}Minh họa định tính}{105}{subsection.5.10.3}%
+\contentsline {section}{\numberline {5.11}Thảo luận}{108}{section.5.11}%
+\contentsline {chapter}{\numberline {6}Kết luận và hướng phát triển}{109}{chapter.6}%
+\contentsline {section}{\numberline {6.1}Kết luận}{109}{section.6.1}%
+\contentsline {subsection}{\numberline {6.1.1}Đánh giá mức độ hoàn thành các đóng góp}{110}{subsection.6.1.1}%
+\contentsline {section}{\numberline {6.2}Hạn chế của đề tài}{111}{section.6.2}%
+\contentsline {section}{\numberline {6.3}Hướng phát triển trong tương lai}{112}{section.6.3}%
+\contentsline {chapter}{Danh mục công trình của tác giả}{113}{section.6.3}%
+\contentsline {chapter}{Tài liệu tham khảo}{114}{chapter*.11}%

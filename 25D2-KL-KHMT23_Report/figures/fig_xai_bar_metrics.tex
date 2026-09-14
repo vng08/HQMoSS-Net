@@ -1,0 +1,55 @@
+% Chỉ số diễn giải Seg-Grad-CAM (thang [0,1]) của UNet vs HQMoSS-Net trên PH2 (trái)
+% và GlaS 2015 (phải). HD95 (đơn vị pixel) không đưa vào đây do khác thang đo,
+% xem fig_xai_hd95.pdf. Số liệu từ Bảng chỉ số diễn giải Chương 5.
+\documentclass[border=6pt]{standalone}
+\usepackage[utf8]{vietnam}
+\usepackage{amsmath}
+\usepackage{xcolor}
+\usepackage{pgfplots}
+\pgfplotsset{compat=1.17}
+\usepgfplotslibrary{groupplots}
+\definecolor{cvblue}{HTML}{5B86B0}
+\definecolor{qpurple}{HTML}{7E57C2}
+\definecolor{inkdark}{HTML}{23272E}
+\begin{document}
+\begin{tikzpicture}
+\begin{groupplot}[
+  group style={group size=2 by 1, horizontal sep=1.6cm},
+  width=10.6cm, height=6.6cm,
+  ymajorgrids, grid style={gray!22},
+  ymin=0, ymax=1.08,
+  ylabel={Giá trị chỉ số},
+  tick label style={font=\sffamily\footnotesize},
+  label style={font=\sffamily\small},
+  title style={font=\sffamily\bfseries},
+  symbolic x coords={IoU-O,Dice-O,IoU-M,Dice-M,B-IoU,EPG,Del-AUC,Ins-AUC},
+  xtick=data,
+  x tick label style={rotate=40, anchor=east, font=\sffamily\scriptsize},
+  enlarge x limits=0.08,
+  legend style={at={(0.5,1.12)}, anchor=south, legend columns=2, font=\sffamily\scriptsize, draw=gray!40, fill=white},
+  legend cell align=left,
+]
+\nextgroupplot[ybar, bar width=5pt, title={PH2}]
+\addplot[fill=cvblue, draw=cvblue!55!black] coordinates {
+  (IoU-O,0.7306) (Dice-O,0.8396) (IoU-M,0.9033) (Dice-M,0.9488)
+  (B-IoU,0.4017) (EPG,0.9584) (Del-AUC,0.2008) (Ins-AUC,0.6379)
+};
+\addlegendentry{U-Net}
+\addplot[fill=qpurple, draw=qpurple!55!black] coordinates {
+  (IoU-O,0.6510) (Dice-O,0.7822) (IoU-M,0.9188) (Dice-M,0.9571)
+  (B-IoU,0.4929) (EPG,0.9864) (Del-AUC,0.1756) (Ins-AUC,0.7287)
+};
+\addlegendentry{HQMoSS-Net}
+
+\nextgroupplot[ybar, bar width=5pt, title={GlaS 2015}]
+\addplot[fill=cvblue, draw=cvblue!55!black] coordinates {
+  (IoU-O,0.4938) (Dice-O,0.6566) (IoU-M,0.6549) (Dice-M,0.7845)
+  (B-IoU,0.2967) (EPG,0.7865) (Del-AUC,0.5605) (Ins-AUC,0.4878)
+};
+\addplot[fill=qpurple, draw=qpurple!55!black] coordinates {
+  (IoU-O,0.5137) (Dice-O,0.6709) (IoU-M,0.7749) (Dice-M,0.8672)
+  (B-IoU,0.4708) (EPG,0.9393) (Del-AUC,0.3688) (Ins-AUC,0.4422)
+};
+\end{groupplot}
+\end{tikzpicture}
+\end{document}

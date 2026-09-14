@@ -1,0 +1,48 @@
+% Hình 5.4: Soft IoU của 8 cấu hình thực nghiệm trên PH2 (mức đóng góp cộng dồn LSS/RDMS/QuMoE)
+% Số liệu 5-fold từ báo cáo. Vẽ bằng pgfplots.
+\documentclass[border=6pt]{standalone}
+\usepackage[utf8]{vietnam}
+\usepackage{amsmath}
+\usepackage{xcolor}
+\usepackage{pgfplots}
+\pgfplotsset{compat=1.17}
+\definecolor{slate}{HTML}{8A93A0}
+\definecolor{cvblue}{HTML}{5B86B0}
+\definecolor{qpurple}{HTML}{9B7EC0}
+\definecolor{qamber}{HTML}{E39A3B}
+\definecolor{decgreen}{HTML}{5E7F4E}
+\definecolor{inkdark}{HTML}{23272E}
+\begin{document}
+\begin{tikzpicture}
+\begin{axis}[
+  width=14.5cm, height=6.8cm,
+  ybar, bar width=14pt,
+  ymajorgrids, grid style={gray!22},
+  ymin=0.75, ymax=0.865,
+  ylabel={Soft IoU trung bình},
+  tick label style={font=\sffamily\small},
+  label style={font=\sffamily\small},
+  nodes near coords, point meta=explicit symbolic,
+  every node near coord/.append style={font=\sffamily\scriptsize, anchor=south, text=inkdark},
+  xtick={1,2,3,4,5,6,7,8,9},
+  xticklabels={UNet, U+LSS, U+RDMS, U+LSS+RDMS, QuMoE, Q+LSS, Q+RDMS, QuNet, HQMoSS},
+  x tick label style={rotate=32, anchor=east, font=\sffamily\scriptsize},
+  enlarge x limits=0.06,
+  legend style={at={(0.5,1.03)}, anchor=south, legend columns=5, font=\sffamily\scriptsize, draw=gray!40, fill=white, /tikz/every even column/.append style={column sep=6pt}},
+  legend cell align=left,
+]
+\addplot[fill=slate, draw=slate!55!black, bar shift=0pt] coordinates {(1,0.7787)[0.7787]};
+\addlegendentry{U-Net gốc}
+\addplot[fill=cvblue, draw=cvblue!55!black, bar shift=0pt] coordinates
+  {(2,0.7935)[0.7935] (3,0.8268)[0.8268] (4,0.8340)[0.8340]};
+\addlegendentry{$+$ cổ điển (LSS/RDMS)}
+\addplot[fill=qpurple, draw=qpurple!55!black, bar shift=0pt] coordinates
+  {(5,0.8127)[0.8127] (6,0.8258)[0.8258] (7,0.8305)[0.8305]};
+\addlegendentry{$+$ lượng tử (QuMoE)}
+\addplot[fill=qamber, draw=qamber!60!black, bar shift=0pt] coordinates {(8,0.7942)[0.7942]};
+\addlegendentry{QuNet (QuFeX)}
+\addplot[fill=decgreen, draw=decgreen!55!black, bar shift=0pt] coordinates {(9,0.8497)[0.8497]};
+\addlegendentry{HQMoSS-Net (đầy đủ)}
+\end{axis}
+\end{tikzpicture}
+\end{document}

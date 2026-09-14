@@ -1,0 +1,52 @@
+% Hình tổng quan đơn giản cho ĐỀ CƯƠNG (tikz + quantikz)
+\documentclass[border=6pt]{standalone}
+\usepackage[utf8]{vietnam}
+\usepackage{amsmath,amssymb}
+\usepackage{xcolor}
+\usepackage{tikz}
+\usetikzlibrary{positioning,fit,arrows.meta,calc,backgrounds}
+\usepackage{quantikz}
+\definecolor{cvblue}{HTML}{35618E}\definecolor{cvbluefill}{HTML}{DCE7F2}
+\definecolor{decgreen}{HTML}{5E7F4E}\definecolor{decfill}{HTML}{E1EBD8}
+\definecolor{qpurple}{HTML}{7E57C2}\definecolor{qfill}{HTML}{ECE3F7}
+\definecolor{slate}{HTML}{5B6470}\definecolor{inkdark}{HTML}{23272E}
+\tikzset{
+  >={Stealth[length=2.6mm]},
+  every node/.style={font=\sffamily\small, text=inkdark},
+  enc/.style={draw=cvblue, fill=cvbluefill, rounded corners=3pt, thick, align=center, minimum height=13mm, minimum width=24mm},
+  dec/.style={draw=decgreen, fill=decfill, rounded corners=3pt, thick, align=center, minimum height=13mm, minimum width=24mm},
+  neck/.style={draw=qpurple, fill=qfill, rounded corners=4pt, very thick, align=center, minimum height=16mm, minimum width=34mm},
+  io/.style={draw=slate, dashed, rounded corners=3pt, align=center, minimum height=13mm, minimum width=20mm},
+  flow/.style={-{Stealth[length=2.6mm]}, line width=1pt, draw=inkdark},
+  skip/.style={-{Stealth[length=2.2mm]}, line width=0.9pt, dashed, draw=slate},
+  lbl/.style={font=\sffamily\footnotesize, text=slate},
+}
+\begin{document}
+\begin{tikzpicture}
+  % ----- Luồng chính U-Net -----
+  \node[io] (in) {Ảnh\\ đầu vào};
+  \node[enc, right=8mm of in] (enc) {\textbf{Encoder}\\ Conv $+$ Pool};
+  \node[neck, right=10mm of enc] (neck) {\textbf{Bottleneck lượng tử}\\ Quantum MoE\\ $+$ LSS (cảm hứng Mamba)};
+  \node[dec, right=10mm of neck] (dec) {\textbf{Decoder}\\ UpConv $+$ Skip};
+  \node[io, right=8mm of dec] (out) {Mặt nạ\\ phân đoạn};
+
+  \draw[flow] (in) -- (enc);
+  \draw[flow] (enc) -- (neck);
+  \draw[flow] (neck) -- (dec);
+  \draw[flow] (dec) -- (out);
+  % skip connection
+  \draw[skip] (enc.north) to[out=60,in=120] node[above,lbl]{skip connection} (dec.north);
+
+  % ----- Inset mạch lượng tử (PQC) -----
+  \node[below=13mm of neck, inner sep=1pt] (circ) {%
+    \begin{quantikz}[column sep=5pt, row sep=7pt]
+      \lstick{$|0\rangle$} & \gate{H} & \gate{R} & \ctrl{1} & \qw      & \gate{R_x} & \meter{} \\
+      \lstick{$|0\rangle$} & \gate{H} & \gate{R} & \targ{}  & \ctrl{1} & \gate{R_y} & \meter{} \\
+      \lstick{$|0\rangle$} & \gate{H} & \gate{R} & \qw      & \targ{}  & \qw        & \meter{}
+    \end{quantikz}%
+  };
+  \node[draw=qpurple, dashed, rounded corners=3pt, fit=(circ), inner sep=3pt] (circbox) {};
+  \node[lbl, text=qpurple, above=0.5mm of circbox.north east, anchor=south east] {Mạch lượng tử tham số hóa (PQC)};
+  \draw[skip, draw=qpurple] (neck.south) -- (circbox.north);
+\end{tikzpicture}
+\end{document}

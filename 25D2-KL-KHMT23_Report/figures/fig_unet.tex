@@ -1,0 +1,64 @@
+% Hình: Kiến trúc U-Net kinh điển (Mục 3.2)
+% Gói: TikZ thuần (positioning + fit), định tuyến tương đối
+\documentclass[border=6pt]{standalone}
+\usepackage[utf8]{vietnam}
+\usepackage{amsmath,amssymb}
+\usepackage{xcolor}
+\usepackage{tikz}
+\usetikzlibrary{positioning,fit,arrows.meta,calc,backgrounds}
+\definecolor{cvblue}{HTML}{35618E}
+\definecolor{cvbluefill}{HTML}{DCE7F2}
+\definecolor{decgreen}{HTML}{5E7F4E}
+\definecolor{decfill}{HTML}{E1EBD8}
+\definecolor{slate}{HTML}{5B6470}
+\definecolor{slatefill}{HTML}{EDEFF2}
+\definecolor{inkdark}{HTML}{23272E}
+\tikzset{
+  >={Stealth[length=2.4mm]},
+  every node/.style={font=\sffamily\small, text=inkdark},
+  enc/.style={draw=cvblue, fill=cvbluefill, rounded corners=2pt, thick, align=center, minimum height=7mm},
+  dec/.style={draw=decgreen, fill=decfill, rounded corners=2pt, thick, align=center, minimum height=7mm},
+  neck/.style={draw=slate, fill=slatefill, rounded corners=2pt, thick, align=center, minimum height=7mm, minimum width=14mm},
+  io/.style={draw=slate, dashed, rounded corners=2pt, align=center, minimum height=7mm, minimum width=13mm},
+  flow/.style={-{Stealth[length=2.4mm]}, line width=0.9pt, draw=inkdark},
+  skip/.style={-{Stealth[length=2mm]}, line width=0.8pt, dashed, draw=slate},
+  lbl/.style={font=\sffamily\scriptsize, text=slate},
+}
+\begin{document}
+\begin{tikzpicture}
+  % ----- Nhánh mã hoá (encoder), cột trái, đi xuống -----
+  \node[enc, minimum width=30mm] (e1) {Conv $\to$ Conv};
+  \node[enc, minimum width=26mm, below=8mm of e1] (e2) {Conv $\to$ Conv};
+  \node[enc, minimum width=22mm, below=8mm of e2] (e3) {Conv $\to$ Conv};
+  \node[enc, minimum width=18mm, below=8mm of e3] (e4) {Conv $\to$ Conv};
+  \foreach \a/\b in {e1/e2, e2/e3, e3/e4}
+     \draw[flow] (\a) -- node[right, lbl] {$\downarrow$ pool} (\b);
+
+  % ----- Nhánh giải mã (decoder), cột phải, đi lên -----
+  \node[dec, minimum width=18mm, right=52mm of e4] (d4) {Conv $\to$ Conv};
+  \node[dec, minimum width=22mm, above=8mm of d4] (d3) {Conv $\to$ Conv};
+  \node[dec, minimum width=26mm, above=8mm of d3] (d2) {Conv $\to$ Conv};
+  \node[dec, minimum width=30mm, above=8mm of d2] (d1) {Conv $\to$ Conv};
+  \foreach \a/\b in {d4/d3, d3/d2, d2/d1}
+     \draw[flow] (\a) -- node[right, lbl] {$\uparrow$ up-conv} (\b);
+
+  % ----- Nút thắt cổ chai -----
+  \node[neck] (b) at ($(e4)!0.5!(d4) + (0,-13mm)$) {Bottleneck};
+  \draw[flow] (e4) |- (b);
+  \draw[flow] (b) -| (d4);
+
+  % ----- Kết nối tắt (skip connections) -----
+  \foreach \a/\b in {e1/d1, e2/d2, e3/d3, e4/d4}
+     \draw[skip] (\a.east) -- (\b.west);
+  \node[lbl, text=slate] at ($(e1.east)!0.5!(d1.west)+(0,3mm)$) {copy \& concatenate (skip connection)};
+
+  % ----- Vào / ra -----
+  \node[io, left=8mm of e1] (in) {Ảnh\\$X$};
+  \node[io, right=8mm of d1] (out) {Mask\\$\hat{Y}$};
+  \draw[flow] (in) -- (e1);
+  \draw[flow] (d1) -- (out);
+
+  % ----- Chú thích chiều dữ liệu -----
+  \node[lbl, left=1mm of e2] {$\downarrow$ độ phân giải,\\ $\uparrow$ số kênh};
+\end{tikzpicture}
+\end{document}

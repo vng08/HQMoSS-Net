@@ -1,0 +1,56 @@
+% Hình: Tích chập giãn nở - so sánh r=1,2,3 (Mục 3.2.4 / 3.2.5)
+% Gói: TikZ thuần
+\documentclass[border=6pt]{standalone}
+\usepackage[utf8]{vietnam}
+\usepackage{amsmath,amssymb}
+\usepackage{xcolor}
+\usepackage{tikz}
+\usetikzlibrary{positioning,fit,arrows.meta,calc,backgrounds}
+\definecolor{cvblue}{HTML}{35618E}
+\definecolor{cvbluefill}{HTML}{DCE7F2}
+\definecolor{slate}{HTML}{5B6470}
+\definecolor{inkdark}{HTML}{23272E}
+\tikzset{
+  every node/.style={font=\sffamily\small, text=inkdark},
+  cell/.style={draw=slate!50, minimum size=5.2mm, inner sep=0pt},
+  tap/.style={draw=cvblue, fill=cvbluefill, line width=0.9pt, minimum size=5.2mm, inner sep=0pt},
+  gcap/.style={font=\sffamily\small\bfseries, text=cvblue},
+  lbl/.style={font=\sffamily\footnotesize, text=slate},
+}
+% Macro vẽ 1 lưới 7x7 với các ô "tap" tại tâm + bước nhảy = r
+\newcommand{\dilgrid}[3]{% #1 = tên, #2 = r, #3 = tiêu đề
+  \begin{scope}[local bounding box=#1]
+    \foreach \i in {0,...,6}
+      \foreach \j in {0,...,6}
+        \node[cell] (#1-\i-\j) at (\j*5.2mm, -\i*5.2mm) {};
+    % tâm tại (3,3); 3x3 tap tại các vị trí cách nhau r
+    \foreach \di in {-1,0,1}
+      \foreach \dj in {-1,0,1}{
+        \pgfmathtruncatemacro{\ri}{3+\di*#2}
+        \pgfmathtruncatemacro{\rj}{3+\dj*#2}
+        \node[tap] at (#1-\ri-\rj) {};
+      }
+  \end{scope}
+}
+\begin{document}
+\begin{tikzpicture}[node distance=12mm]
+  \dilgrid{g1}{1}{}
+  \node[gcap, above=1mm of g1] {$r=1$};
+  \node[lbl, below=1mm of g1] {trường nhìn $3\times3$};
+
+  \begin{scope}[xshift=52mm]
+    \dilgrid{g2}{2}{}
+  \end{scope}
+  \node[gcap, above=1mm of g2] {$r=2$};
+  \node[lbl, below=1mm of g2] {trường nhìn $5\times5$};
+
+  \begin{scope}[xshift=104mm]
+    \dilgrid{g3}{3}{}
+  \end{scope}
+  \node[gcap, above=1mm of g3] {$r=3$};
+  \node[lbl, below=1mm of g3] {trường nhìn $7\times7$};
+
+  \node[lbl, text width=13cm, align=center] at ($(g2.south)+(0,-9mm)$)
+    {Cùng $9$ trọng số ($3\times3$), kích thước hiệu dụng $k_{\text{eff}} = k + (k-1)(r-1)$ tăng theo $r$.};
+\end{tikzpicture}
+\end{document}
